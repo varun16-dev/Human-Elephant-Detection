@@ -1,0 +1,167 @@
+/**
+ * Alert Management Styles for Elephant Alert System
+ * Department of AI & ML, Sri Sairam College of Engineering
+ */
+
+/* Push Subscription Section */
+.push-subscription-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.push-status {
+  padding: 0.75rem;
+  border-radius: 8px;
+  background: var(--glass-bg);
+  border: 1px solid var(--border-color);
+  text-align: center;
+  font-weight: 600;
+}
+
+.push-status.ready {
+  color: #10b981;
+}
+
+.push-status.success {
+  color: #10b981;
+}
+
+.push-status.error {
+  color: #ef4444;
+}
+
+.push-buttons {
+  display: flex;
+  gap: 0.75rem;
+}
+
+/* WhatsApp Recipients Section */
+.whatsapp-recipients-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.recipients-list {
+  max-height: 200px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.recipient-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  border-radius: 8px;
+  background: var(--glass-bg);
+  border: 1px solid var(--border-color);
+}
+
+.recipient-item.enabled {
+  border-left: 3px solid #10b981;
+}
+
+.recipient-item.disabled {
+  border-left: 3px solid #ef4444;
+  opacity: 0.6;
+}
+
+.recipient-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.badge-role {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.badge-role.officer {
+  background: #3b82f6;
+  color: white;
+}
+
+.badge-role.villager {
+  background: #10b981;
+  color: white;
+}
+
+.recipient-status {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+/* Configuration Section */
+.config-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.config-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.config-row label {
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.config-row span {
+  font-weight: 600;
+}
+
+/* Test Section */
+.test-section {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.test-section h4 {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.875rem;
+  color: #f59e0b;
+}
+
+.test-section button {
+  margin-right: 0.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+  padding: 0.5rem 1rem;
+}
+
+/* Status Badges */
+.badge-det {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.badge-det.yes {
+  background: #10b981;
+  color: white;
+}
+
+.badge-det.no {
+  background: #6b7280;
+  color: white;
+}
+
+.badge-det.pending {
+  background: #f59e0b;
+  color: white;
+}

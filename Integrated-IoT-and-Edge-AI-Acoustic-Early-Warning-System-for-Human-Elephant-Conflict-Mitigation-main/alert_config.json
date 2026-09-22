@@ -1,0 +1,14 @@
+{
+  "confirmation_settings": {
+    "confirmation_frames": 3,
+    "min_confirmation_confidence": 0.50,
+    "alert_cooldown_seconds": 300
+  },
+  "web_push_settings": {
+    "enabled": true,
+    "notification_ttl_seconds": 3600
+  },
+  "alert_storage": {
+    "max_alerts_history": 1000
+  }
+}

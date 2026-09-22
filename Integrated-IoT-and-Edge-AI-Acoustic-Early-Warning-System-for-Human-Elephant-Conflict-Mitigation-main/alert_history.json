@@ -1,0 +1,74 @@
+[
+  {
+    "alert_id": "alert_1789815506",
+    "alert_type": "ELEPHANT_CONFIRMED",
+    "status": "ACTIVE",
+    "timestamp": "2026-09-19T16:28:26.034603",
+    "timestamp_unix": 1789815506.0346036,
+    "elephant_count": 1,
+    "confidence": 52.69,
+    "image_path": "C:\\Users\\micva\\Downloads\\Complete System\\WelcomeScreen\\fall_final\\detected_elephants\\elephant_20260919_162825.jpg",
+    "csv_data": {
+      "date": "2026-09-19",
+      "time": "16:28:25",
+      "timestamp": "2026-09-19T16:28:25",
+      "elephant_detected": "YES",
+      "elephant_count": 1,
+      "confidence": 47.05
+    },
+    "delivery_status": {
+      "web_push": {
+        "forest_officers": "failed",
+        "villagers": "failed"
+      }
+    }
+  },
+  {
+    "alert_id": "alert_1789831397",
+    "alert_type": "ELEPHANT_CONFIRMED",
+    "status": "ACTIVE",
+    "timestamp": "2026-09-19T20:53:17.752187",
+    "timestamp_unix": 1789831397.7521868,
+    "elephant_count": 3,
+    "confidence": 77.72,
+    "image_path": "c:\\Users\\micva\\Downloads\\Complete System\\WelcomeScreen\\fall_final\\detected_elephants\\elephant_20260919_205314.jpg",
+    "csv_data": {
+      "date": "2026-09-19",
+      "time": "20:53:17",
+      "timestamp": "2026-09-19T20:53:17",
+      "elephant_detected": "YES",
+      "elephant_count": 3,
+      "confidence": 74.19
+    },
+    "delivery_status": {
+      "web_push": {
+        "forest_officers": "failed",
+        "villagers": "failed"
+      }
+    }
+  },
+  {
+    "alert_id": "alert_1789832683",
+    "alert_type": "ELEPHANT_CONFIRMED",
+    "status": "ACTIVE",
+    "timestamp": "2026-09-19T21:14:43.269874",
+    "timestamp_unix": 1789832683.2698746,
+    "elephant_count": 1,
+    "confidence": 54.72,
+    "image_path": "c:\\Users\\micva\\Downloads\\Complete System\\WelcomeScreen\\fall_final\\detected_elephants\\elephant_20260919_211443.jpg",
+    "csv_data": {
+      "date": "2026-09-19",
+      "time": "21:14:43",
+      "timestamp": "2026-09-19T21:14:43",
+      "elephant_detected": "YES",
+      "elephant_count": 1,
+      "confidence": 45.35
+    },
+    "delivery_status": {
+      "web_push": {
+        "forest_officers": "failed",
+        "villagers": "failed"
+      }
+    }
+  }
+]

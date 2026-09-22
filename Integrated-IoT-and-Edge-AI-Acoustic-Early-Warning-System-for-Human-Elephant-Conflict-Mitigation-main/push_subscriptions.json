@@ -1,0 +1,134 @@
+[
+  {
+    "id": "sub_001",
+    "endpoint": "https://wns2-pn1p.notify.windows.com/w/?token=BQYAAABh0myJ4Yg9CDim7yekejwnB4N32VQRPFlDYE9itikfCoGbFqsFEvRloPl3Nze49eia7dvXGnzkuLBR1iSPMBgV71YlGyp6Pd0xGuKK10hwmJp9GiFcuq6Y8V3UyMgoldeMOQzgnjdwHYXzQpjaiPeZr1rY8biaKRuVWDX1JI2Sdiors%2f41PqwzQi71vpJ8%2b112%2fh0Yuv2lnQfMWdPmXX3KFwM0bzDQ3vQoUC%2bUIsoiieI7zFYPuI6gsn6DnXFG8d%2b%2boxoNP5NWfmCFlMvsqHxsCpiw1eXoy6EA%2b4V%2fGnaAn%2bIyTMHcd9WtLhDsHxEyaks%3d",
+    "keys": {
+      "p256dh": "BLPGnBUtuXSvwWQBcocaN4UdbjorxeAz1TIC8sZ2JvOWA7Vdd9IN1Kt-mKlxKA8dVJPqBpfnEwFTSe-0Ig-Vk6k",
+      "auth": "nxOuOSbKBFNfWRQVHuPSKA"
+    },
+    "user_role": "VILLAGER",
+    "user_name": "Dashboard User",
+    "enabled": false,
+    "created_at": "2026-09-19T22:48:56.171823"
+  },
+  {
+    "id": "sub_002",
+    "endpoint": "https://wns2-pn1p.notify.windows.com/w/?token=BQYAAABh0myJ4Yg9CDim7yekejwnB4N32VQRPFlDYE9itikfCoGbFqsFEvRloPl3Nze49eia7dvXGnzkuLBR1iSPMBgV71YlGyp6Pd0xGuKK10hwmJp9GiFcuq6Y8V3UyMgoldeMOQzgnjdwHYXzQpjaiPeZr1rY8biaKRuVWDX1JI2Sdiors%2f41PqwzQi71vpJ8%2b112%2fh0Yuv2lnQfMWdPmXX3KFwM0bzDQ3vQoUC%2bUIsoiieI7zFYPuI6gsn6DnXFG8d%2b%2boxoNP5NWfmCFlMvsqHxsCpiw1eXoy6EA%2b4V%2fGnaAn%2bIyTMHcd9WtLhDsHxEyaks%3d",
+    "keys": {
+      "p256dh": "BLPGnBUtuXSvwWQBcocaN4UdbjorxeAz1TIC8sZ2JvOWA7Vdd9IN1Kt-mKlxKA8dVJPqBpfnEwFTSe-0Ig-Vk6k",
+      "auth": "nxOuOSbKBFNfWRQVHuPSKA"
+    },
+    "user_role": "VILLAGER",
+    "user_name": "Dashboard User",
+    "enabled": true,
+    "created_at": "2026-09-19T22:55:17.960188"
+  },
+  {
+    "id": "sub_003",
+    "endpoint": "https://wns2-pn1p.notify.windows.com/w/?token=BQYAAABh0myJ4Yg9CDim7yekejwnB4N32VQRPFlDYE9itikfCoGbFqsFEvRloPl3Nze49eia7dvXGnzkuLBR1iSPMBgV71YlGyp6Pd0xGuKK10hwmJp9GiFcuq6Y8V3UyMgoldeMOQzgnjdwHYXzQpjaiPeZr1rY8biaKRuVWDX1JI2Sdiors%2f41PqwzQi71vpJ8%2b112%2fh0Yuv2lnQfMWdPmXX3KFwM0bzDQ3vQoUC%2bUIsoiieI7zFYPuI6gsn6DnXFG8d%2b%2boxoNP5NWfmCFlMvsqHxsCpiw1eXoy6EA%2b4V%2fGnaAn%2bIyTMHcd9WtLhDsHxEyaks%3d",
+    "keys": {
+      "p256dh": "BLPGnBUtuXSvwWQBcocaN4UdbjorxeAz1TIC8sZ2JvOWA7Vdd9IN1Kt-mKlxKA8dVJPqBpfnEwFTSe-0Ig-Vk6k",
+      "auth": "nxOuOSbKBFNfWRQVHuPSKA"
+    },
+    "user_role": "VILLAGER",
+    "user_name": "Dashboard User",
+    "enabled": true,
+    "created_at": "2026-09-19T23:26:54.021176"
+  },
+  {
+    "id": "sub_004",
+    "endpoint": "https://wns2-pn1p.notify.windows.com/w/?token=BQYAAABh0myJ4Yg9CDim7yekejwnB4N32VQRPFlDYE9itikfCoGbFqsFEvRloPl3Nze49eia7dvXGnzkuLBR1iSPMBgV71YlGyp6Pd0xGuKK10hwmJp9GiFcuq6Y8V3UyMgoldeMOQzgnjdwHYXzQpjaiPeZr1rY8biaKRuVWDX1JI2Sdiors%2f41PqwzQi71vpJ8%2b112%2fh0Yuv2lnQfMWdPmXX3KFwM0bzDQ3vQoUC%2bUIsoiieI7zFYPuI6gsn6DnXFG8d%2b%2boxoNP5NWfmCFlMvsqHxsCpiw1eXoy6EA%2b4V%2fGnaAn%2bIyTMHcd9WtLhDsHxEyaks%3d",
+    "keys": {
+      "p256dh": "BLPGnBUtuXSvwWQBcocaN4UdbjorxeAz1TIC8sZ2JvOWA7Vdd9IN1Kt-mKlxKA8dVJPqBpfnEwFTSe-0Ig-Vk6k",
+      "auth": "nxOuOSbKBFNfWRQVHuPSKA"
+    },
+    "user_role": "VILLAGER",
+    "user_name": "Dashboard User",
+    "enabled": true,
+    "created_at": "2026-09-19T23:27:03.213867"
+  },
+  {
+    "id": "sub_005",
+    "endpoint": "https://wns2-pn1p.notify.windows.com/w/?token=BQYAAABh0myJ4Yg9CDim7yekejwnB4N32VQRPFlDYE9itikfCoGbFqsFEvRloPl3Nze49eia7dvXGnzkuLBR1iSPMBgV71YlGyp6Pd0xGuKK10hwmJp9GiFcuq6Y8V3UyMgoldeMOQzgnjdwHYXzQpjaiPeZr1rY8biaKRuVWDX1JI2Sdiors%2f41PqwzQi71vpJ8%2b112%2fh0Yuv2lnQfMWdPmXX3KFwM0bzDQ3vQoUC%2bUIsoiieI7zFYPuI6gsn6DnXFG8d%2b%2boxoNP5NWfmCFlMvsqHxsCpiw1eXoy6EA%2b4V%2fGnaAn%2bIyTMHcd9WtLhDsHxEyaks%3d",
+    "keys": {
+      "p256dh": "BLPGnBUtuXSvwWQBcocaN4UdbjorxeAz1TIC8sZ2JvOWA7Vdd9IN1Kt-mKlxKA8dVJPqBpfnEwFTSe-0Ig-Vk6k",
+      "auth": "nxOuOSbKBFNfWRQVHuPSKA"
+    },
+    "user_role": "VILLAGER",
+    "user_name": "Dashboard User",
+    "enabled": true,
+    "created_at": "2026-09-19T23:30:34.515091"
+  },
+  {
+    "id": "sub_006",
+    "endpoint": "https://wns2-pn1p.notify.windows.com/w/?token=BQYAAABh0myJ4Yg9CDim7yekejwnB4N32VQRPFlDYE9itikfCoGbFqsFEvRloPl3Nze49eia7dvXGnzkuLBR1iSPMBgV71YlGyp6Pd0xGuKK10hwmJp9GiFcuq6Y8V3UyMgoldeMOQzgnjdwHYXzQpjaiPeZr1rY8biaKRuVWDX1JI2Sdiors%2f41PqwzQi71vpJ8%2b112%2fh0Yuv2lnQfMWdPmXX3KFwM0bzDQ3vQoUC%2bUIsoiieI7zFYPuI6gsn6DnXFG8d%2b%2boxoNP5NWfmCFlMvsqHxsCpiw1eXoy6EA%2b4V%2fGnaAn%2bIyTMHcd9WtLhDsHxEyaks%3d",
+    "keys": {
+      "p256dh": "BLPGnBUtuXSvwWQBcocaN4UdbjorxeAz1TIC8sZ2JvOWA7Vdd9IN1Kt-mKlxKA8dVJPqBpfnEwFTSe-0Ig-Vk6k",
+      "auth": "nxOuOSbKBFNfWRQVHuPSKA"
+    },
+    "user_role": "VILLAGER",
+    "user_name": "Dashboard User",
+    "enabled": true,
+    "created_at": "2026-09-19T23:35:51.085187"
+  },
+  {
+    "id": "sub_007",
+    "endpoint": "https://wns2-pn1p.notify.windows.com/w/?token=BQYAAABh0myJ4Yg9CDim7yekejwnB4N32VQRPFlDYE9itikfCoGbFqsFEvRloPl3Nze49eia7dvXGnzkuLBR1iSPMBgV71YlGyp6Pd0xGuKK10hwmJp9GiFcuq6Y8V3UyMgoldeMOQzgnjdwHYXzQpjaiPeZr1rY8biaKRuVWDX1JI2Sdiors%2f41PqwzQi71vpJ8%2b112%2fh0Yuv2lnQfMWdPmXX3KFwM0bzDQ3vQoUC%2bUIsoiieI7zFYPuI6gsn6DnXFG8d%2b%2boxoNP5NWfmCFlMvsqHxsCpiw1eXoy6EA%2b4V%2fGnaAn%2bIyTMHcd9WtLhDsHxEyaks%3d",
+    "keys": {
+      "p256dh": "BLPGnBUtuXSvwWQBcocaN4UdbjorxeAz1TIC8sZ2JvOWA7Vdd9IN1Kt-mKlxKA8dVJPqBpfnEwFTSe-0Ig-Vk6k",
+      "auth": "nxOuOSbKBFNfWRQVHuPSKA"
+    },
+    "user_role": "VILLAGER",
+    "user_name": "Dashboard User",
+    "enabled": true,
+    "created_at": "2026-09-19T23:38:41.826210"
+  },
+  {
+    "id": "sub_008",
+    "endpoint": "https://wns2-pn1p.notify.windows.com/w/?token=BQYAAABh0myJ4Yg9CDim7yekejwnB4N32VQRPFlDYE9itikfCoGbFqsFEvRloPl3Nze49eia7dvXGnzkuLBR1iSPMBgV71YlGyp6Pd0xGuKK10hwmJp9GiFcuq6Y8V3UyMgoldeMOQzgnjdwHYXzQpjaiPeZr1rY8biaKRuVWDX1JI2Sdiors%2f41PqwzQi71vpJ8%2b112%2fh0Yuv2lnQfMWdPmXX3KFwM0bzDQ3vQoUC%2bUIsoiieI7zFYPuI6gsn6DnXFG8d%2b%2boxoNP5NWfmCFlMvsqHxsCpiw1eXoy6EA%2b4V%2fGnaAn%2bIyTMHcd9WtLhDsHxEyaks%3d",
+    "keys": {
+      "p256dh": "BLPGnBUtuXSvwWQBcocaN4UdbjorxeAz1TIC8sZ2JvOWA7Vdd9IN1Kt-mKlxKA8dVJPqBpfnEwFTSe-0Ig-Vk6k",
+      "auth": "nxOuOSbKBFNfWRQVHuPSKA"
+    },
+    "user_role": "VILLAGER",
+    "user_name": "Dashboard User",
+    "enabled": true,
+    "created_at": "2026-09-19T23:48:19.212702"
+  },
+  {
+    "id": "sub_009",
+    "endpoint": "https://wns2-pn1p.notify.windows.com/w/?token=BQYAAABh0myJ4Yg9CDim7yekejwnB4N32VQRPFlDYE9itikfCoGbFqsFEvRloPl3Nze49eia7dvXGnzkuLBR1iSPMBgV71YlGyp6Pd0xGuKK10hwmJp9GiFcuq6Y8V3UyMgoldeMOQzgnjdwHYXzQpjaiPeZr1rY8biaKRuVWDX1JI2Sdiors%2f41PqwzQi71vpJ8%2b112%2fh0Yuv2lnQfMWdPmXX3KFwM0bzDQ3vQoUC%2bUIsoiieI7zFYPuI6gsn6DnXFG8d%2b%2boxoNP5NWfmCFlMvsqHxsCpiw1eXoy6EA%2b4V%2fGnaAn%2bIyTMHcd9WtLhDsHxEyaks%3d",
+    "keys": {
+      "p256dh": "BLPGnBUtuXSvwWQBcocaN4UdbjorxeAz1TIC8sZ2JvOWA7Vdd9IN1Kt-mKlxKA8dVJPqBpfnEwFTSe-0Ig-Vk6k",
+      "auth": "nxOuOSbKBFNfWRQVHuPSKA"
+    },
+    "user_role": "VILLAGER",
+    "user_name": "Dashboard User",
+    "enabled": true,
+    "created_at": "2026-09-19T23:48:25.968928"
+  },
+  {
+    "id": "sub_010",
+    "endpoint": "https://wns2-pn1p.notify.windows.com/w/?token=BQYAAABh0myJ4Yg9CDim7yekejwnB4N32VQRPFlDYE9itikfCoGbFqsFEvRloPl3Nze49eia7dvXGnzkuLBR1iSPMBgV71YlGyp6Pd0xGuKK10hwmJp9GiFcuq6Y8V3UyMgoldeMOQzgnjdwHYXzQpjaiPeZr1rY8biaKRuVWDX1JI2Sdiors%2f41PqwzQi71vpJ8%2b112%2fh0Yuv2lnQfMWdPmXX3KFwM0bzDQ3vQoUC%2bUIsoiieI7zFYPuI6gsn6DnXFG8d%2b%2boxoNP5NWfmCFlMvsqHxsCpiw1eXoy6EA%2b4V%2fGnaAn%2bIyTMHcd9WtLhDsHxEyaks%3d",
+    "keys": {
+      "p256dh": "BLPGnBUtuXSvwWQBcocaN4UdbjorxeAz1TIC8sZ2JvOWA7Vdd9IN1Kt-mKlxKA8dVJPqBpfnEwFTSe-0Ig-Vk6k",
+      "auth": "nxOuOSbKBFNfWRQVHuPSKA"
+    },
+    "user_role": "VILLAGER",
+    "user_name": "Dashboard User",
+    "enabled": true,
+    "created_at": "2026-09-19T23:51:44.493166"
+  },
+  {
+    "id": "sub_011",
+    "endpoint": "https://wns2-pn1p.notify.windows.com/w/?token=BQYAAABh0myJ4Yg9CDim7yekejwnB4N32VQRPFlDYE9itikfCoGbFqsFEvRloPl3Nze49eia7dvXGnzkuLBR1iSPMBgV71YlGyp6Pd0xGuKK10hwmJp9GiFcuq6Y8V3UyMgoldeMOQzgnjdwHYXzQpjaiPeZr1rY8biaKRuVWDX1JI2Sdiors%2f41PqwzQi71vpJ8%2b112%2fh0Yuv2lnQfMWdPmXX3KFwM0bzDQ3vQoUC%2bUIsoiieI7zFYPuI6gsn6DnXFG8d%2b%2boxoNP5NWfmCFlMvsqHxsCpiw1eXoy6EA%2b4V%2fGnaAn%2bIyTMHcd9WtLhDsHxEyaks%3d",
+    "keys": {
+      "p256dh": "BLPGnBUtuXSvwWQBcocaN4UdbjorxeAz1TIC8sZ2JvOWA7Vdd9IN1Kt-mKlxKA8dVJPqBpfnEwFTSe-0Ig-Vk6k",
+      "auth": "nxOuOSbKBFNfWRQVHuPSKA"
+    },
+    "user_role": "VILLAGER",
+    "user_name": "Dashboard User",
+    "enabled": true,
+    "created_at": "2026-09-19T23:57:52.010613"
+  }
+]

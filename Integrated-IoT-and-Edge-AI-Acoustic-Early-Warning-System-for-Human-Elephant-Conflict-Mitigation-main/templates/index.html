@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Integrated IoT & Edge-AI Acoustic Early Warning System | Major Project Phase II</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <!-- Leaflet CSS for GIS Map -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- App Main CSS -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/camera_detection.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/alerts.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/sensor_monitoring.css') }}">
+</head>
+<body>
+
+  <!-- Strobe Light Simulator Overlay -->
+  <div id="strobe-overlay" class="strobe-overlay"></div>
+
+  <!-- Header Section -->
+  <header class="app-header">
+    <div class="brand-section">
+      <div class="logo-badge">
+        <i class="fa-solid fa-shield-cat" style="color: #000;"></i>
+      </div>
+      <div class="title-group">
+        <h1>Integrated IoT & Edge-AI Acoustic Early Warning System</h1>
+      </div>
+    </div>
+
+    <div class="header-status-bar">
+      <div class="status-pill">
+        <span id="header-status-dot" class="dot-indicator active-pulse" style="background: #10b981;"></span>
+        <span id="header-status-text">SYSTEM STANDBY - MONITORING ACTIVE</span>
+      </div>
+
+      <div class="status-pill">
+        <i class="fa-solid fa-tower-cell" style="color: #10b981;"></i>
+        <span>LoRa Mesh: 6/6 Online</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Navigation Tabs Bar -->
+  <nav class="nav-tabs">
+    <button class="nav-tab active" onclick="switchTab('map-tab')">
+      <i class="fa-solid fa-map-location-dot"></i> Live GIS Corridor Map
+    </button>
+    <button class="nav-tab" onclick="switchTab('sensor-tab')">
+      <i class="fa-solid fa-microchip"></i> IoT Sensor Nodes & Telemetry
+    </button>
+    <button class="nav-tab" onclick="switchTab('sensor-monitoring-tab')">
+      <i class="fa-solid fa-chart-line"></i> Sensor Monitoring
+    </button>
+    <button class="nav-tab" onclick="switchTab('camera-tab')">
+      <i class="fa-solid fa-camera"></i> Camera Elephant Detection
+    </button>
+    <button class="nav-tab" onclick="switchTab('alerts-tab')">
+      <i class="fa-solid fa-bell"></i> Alert Management
+    </button>
+  </nav>
+
+  <!-- Main Container -->
+  <main class="main-container">
+
+    <!-- TAB 1: GIS Map & Overview Dashboard -->
+    <div id="map-tab" class="tab-pane active">
+      <div class="grid-dashboard">
+        
+        <!-- Left: Map Container -->
+        <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+          
+          <!-- GIS Map Card -->
+          <div class="glass-card">
+            <div class="card-header">
+              <h2><i class="fa-solid fa-earth-asia" style="color: #10b981;"></i> <span id="map-title-text">Bannerghatta National Park - Live Elephant Trajectory GIS Map</span></h2>
+              <span class="header-tag" id="map-location-tag">GPS Live Telemetry</span>
+            </div>
+
+            <div class="map-controls-bar" style="justify-content: space-between; gap: 0.5rem; flex-wrap: wrap;">
+              <div style="font-size: 0.82rem; color: var(--accent-cyan); display: flex; align-items: center; gap: 0.4rem;" id="live-cursor-coordinates">
+                <i class="fa-solid fa-location-crosshairs" style="color: #10b981;"></i> <span>Move cursor on map to inspect location...</span>
+              </div>
+            </div>
+
+            <div id="map-container"></div>
+          </div>
+
+          <!-- Non-Invasive Deterrent Actuators Panel -->
+          <div class="glass-card">
+            <div class="card-header">
+              <h2><i class="fa-solid fa-sliders" style="color: var(--accent-cyan);"></i> Non-Invasive Deterrent Actuators</h2>
+              <span class="header-tag">Autonomous & Manual Controls</span>
+            </div>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.85rem;">
+              Safely redirect elephants away from human settlements using bio-acoustic deterrent sounds and strobe lights without causing physiological harm.
+            </p>
+
+            <div class="deterrent-controls">
+              
+              <!-- Bio Acoustic Card -->
+              <div class="deterrent-card active" id="card-bio">
+                <div class="deterrent-icon">
+                  <i class="fa-solid fa-volume-high"></i>
+                </div>
+                <div style="font-weight: 600; font-size: 0.88rem;">Bio-Acoustic Speaker</div>
+                <div style="font-size: 0.72rem; color: var(--text-muted);">Predator Warning Sound</div>
+                <label class="toggle-switch" style="margin-top: 0.3rem;">
+                  <input type="checkbox" id="toggle-bio" checked onchange="toggleDeterrent('bio_acoustic')">
+                  <span class="slider"></span>
+                </label>
+              </div>
+
+              <!-- Strobe Light Card -->
+              <div class="deterrent-card active" id="card-strobe">
+                <div class="deterrent-icon">
+                  <i class="fa-solid fa-lightbulb"></i>
+                </div>
+                <div style="font-weight: 600; font-size: 0.88rem;">LED Strobe Lights</div>
+                <div style="font-size: 0.72rem; color: var(--text-muted);">High-Intensity Flashing</div>
+                <label class="toggle-switch" style="margin-top: 0.3rem;">
+                  <input type="checkbox" id="toggle-strobe" checked onchange="toggleDeterrent('strobe_light')">
+                  <span class="slider"></span>
+                </label>
+              </div>
+
+              <!-- High Decibel Siren Card -->
+              <div class="deterrent-card" id="card-siren">
+                <div class="deterrent-icon">
+                  <i class="fa-solid fa-bell"></i>
+                </div>
+                <div style="font-weight: 600; font-size: 0.88rem;">High-Decibel Siren</div>
+                <div style="font-size: 0.72rem; color: var(--text-muted);">110 Acoustic Siren</div>
+                <label class="toggle-switch" style="margin-top: 0.3rem;">
+                  <input type="checkbox" id="toggle-siren" onchange="toggleDeterrent('siren')">
+                  <span class="slider"></span>
+                </label>
+              </div>
+
+              <!-- SMS Broadcaster Card -->
+              <div class="deterrent-card active" id="card-sms">
+                <div class="deterrent-icon">
+                  <i class="fa-solid fa-comment-sms"></i>
+                </div>
+                <div style="font-weight: 600; font-size: 0.88rem;">Villager SMS Alert</div>
+                <div style="font-size: 0.72rem; color: var(--text-muted);">Auto Mobile Dispatch</div>
+                <button class="audio-btn" style="margin-top: 0.3rem; padding: 0.3rem 0.6rem; font-size: 0.75rem;" onclick="broadcastSMSAlert()">
+                  Send SMS Now
+                </button>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Right: System Status Overview -->
+        <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+
+          <!-- System Status Overview Card -->
+          <div class="glass-card">
+            <div class="card-header">
+              <h2><i class="fa-solid fa-shield-halved" style="color: #10b981;"></i> System Status Overview</h2>
+              <span class="header-tag" style="background: rgba(16,185,129,0.2); color: #10b981;">ALL CLEAR</span>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+              <div class="metric-box" style="background: rgba(16, 185, 129, 0.08); border-color: rgba(16, 185, 129, 0.3);">
+                <div class="metric-label">Current Threat Level</div>
+                <div class="metric-value highlight" style="color: #10b981;"><i class="fa-solid fa-circle-check"></i> SAFE / MONITORING</div>
+              </div>
+
+              <div class="metric-box">
+                <div class="metric-label">Active Field Sensor Mesh</div>
+                <div class="metric-value highlight"><i class="fa-solid fa-tower-broadcast"></i> 6 Nodes Online (LoRa)</div>
+              </div>
+
+              <div class="metric-box">
+                <div class="metric-label">Elephant Intrusions Detected</div>
+                <div class="metric-value"><i class="fa-solid fa-paw"></i> 0 Threats Detected</div>
+              </div>
+
+              <div class="metric-box">
+                <div class="metric-label">Perimeter Security Coverage</div>
+                <div class="metric-value highlight" style="color: #10b981;"><i class="fa-solid fa-shield"></i> 100% Operational</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: IoT Field Sensor Nodes & Telemetry -->
+    <div id="sensor-tab" class="tab-pane">
+      <div class="glass-card">
+        <div class="card-header">
+          <h2><i class="fa-solid fa-microchip" style="color: #06b6d4;"></i> IoT Field Sensor Nodes & Telemetry</h2>
+          <span class="header-tag">LoRaWAN & Wi-Fi Protocol</span>
+        </div>
+        
+        <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.25rem;">
+          Each field node integrates a PIR motion sensor, acoustic microphone, ground vibration sensor, GPS module, temperature/humidity sensor, and solar battery charging unit. Data is processed locally by Edge-AI before transmitting to MakeAcademy Cloud.
+        </p>
+
+        <div id="nodes-container" class="nodes-grid">
+          <!-- Rendered dynamically by sensor_nodes.js -->
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: Sensor Monitoring -->
+    <div id="sensor-monitoring-tab" class="tab-pane">
+      <div class="sensor-monitoring-grid">
+        
+        <!-- Left: Sensor Status Cards -->
+        <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+          
+          <!-- Device Status Header -->
+          <div class="glass-card">
+            <div class="device-status-header">
+              <div class="device-status-row">
+                <div class="device-status-pill" id="device-status-pill">
+                  <span class="device-status-dot" id="device-status-dot"></span>
+                  <span id="device-status-text">Device: Online</span>
+                </div>
+                <div class="auto-refresh-pill" id="auto-refresh-pill" onclick="toggleAutoRefresh()" style="cursor: pointer;">
+                  <i class="fa-solid fa-rotate" id="auto-refresh-icon"></i>
+                  <span id="auto-refresh-text">Auto-Refresh: ON</span>
+                </div>
+                <button class="manual-refresh-btn" onclick="manualRefresh()" title="Refresh Now">
+                  <i class="fa-solid fa-rotate-right"></i>
+                </button>
+              </div>
+              <div class="last-update-text" id="last-update-text">
+                Last update: --
+              </div>
+            </div>
+          </div>
+
+          <!-- PIR Status Card -->
+          <div class="glass-card">
+            <div class="card-header">
+              <h2><i class="fa-solid fa-person-walking" style="color: #10b981;"></i> PIR Status</h2>
+              <span class="header-tag" id="pir-status-tag">Normal</span>
+            </div>
+            
+            <div class="sensor-status-display">
+              <div class="sensor-value-large" id="pir-current-value">0.00</div>
+              
+              <div class="sensor-thresholds">
+                <div class="threshold-row">
+                  <span class="threshold-label">Min:</span>
+                  <span class="threshold-value" id="pir-min">0.0</span>
+                </div>
+                <div class="threshold-row">
+                  <span class="threshold-label">Max:</span>
+                  <span class="threshold-value" id="pir-max">1.0</span>
+                </div>
+                <div class="threshold-row">
+                  <span class="threshold-label">Limit:</span>
+                  <span class="threshold-value" id="pir-limit">0.5</span>
+                </div>
+              </div>
+              
+              <div class="sensor-status-indicator" id="pir-status-indicator">
+                <span class="status-dot normal"></span>
+                <span class="status-text" id="pir-status-text">Normal</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sound Status Card -->
+          <div class="glass-card">
+            <div class="card-header">
+              <h2><i class="fa-solid fa-volume-high" style="color: #06b6d4;"></i> Sound Status</h2>
+              <span class="header-tag" id="sound-status-tag">Normal</span>
+            </div>
+            
+            <div class="sensor-status-display">
+              <div class="sensor-value-large" id="sound-current-value">0.00</div>
+              
+              <div class="sensor-thresholds">
+                <div class="threshold-row">
+                  <span class="threshold-label">Min:</span>
+                  <span class="threshold-value" id="sound-min">0.0</span>
+                </div>
+                <div class="threshold-row">
+                  <span class="threshold-label">Max:</span>
+                  <span class="threshold-value" id="sound-max">1.0</span>
+                </div>
+                <div class="threshold-row">
+                  <span class="threshold-label">Limit:</span>
+                  <span class="threshold-value" id="sound-limit">0.3</span>
+                </div>
+              </div>
+              
+              <div class="sensor-status-indicator" id="sound-status-indicator">
+                <span class="status-dot normal"></span>
+                <span class="status-text" id="sound-status-text">Normal</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Right: Data Visualization -->
+        <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+          
+          <!-- Data Visualization Card -->
+          <div class="glass-card">
+            <div class="card-header">
+              <h2><i class="fa-solid fa-chart-line" style="color: #f59e0b;"></i> Data Visualization</h2>
+              <span class="header-tag">Real-time & Historical</span>
+            </div>
+
+            <!-- Visualization Controls - Exact Reference Design -->
+            <div class="visualization-controls">
+              
+              <!-- Top Control Row -->
+              <div class="top-control-row">
+                <!-- Chart Type -->
+                <select id="chart-type" class="chart-type-select">
+                  <option value="line">Line Chart</option>
+                </select>
+                
+                <!-- Date Range -->
+                <div class="date-range-inputs">
+                  <input type="datetime-local" id="from-date" class="date-input" placeholder="dd-mm-yyyy --:--">
+                  <input type="datetime-local" id="to-date" class="date-input" placeholder="dd-mm-yyyy --:--">
+                </div>
+                
+                <!-- Last N Points -->
+                <input type="number" id="data-points" class="points-input" value="100" placeholder="Last 100 pts">
+              </div>
+
+              <!-- Middle Control Row - Step Control -->
+              <div class="middle-control-row">
+                <div class="step-control">
+                  <label>◷ Step</label>
+                  <input type="number" id="step-input" class="step-input" value="1" min="1" max="10">
+                  <span>nth</span>
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="action-buttons">
+                  <button class="btn btn-apply" onclick="applyFilters()">
+                    <i class="fa-solid fa-arrow-down"></i> Apply
+                  </button>
+                  <button class="btn btn-reset" onclick="resetFilters()">
+                    <i class="fa-solid fa-rotate-left"></i> Reset
+                  </button>
+                  <button class="btn btn-export" onclick="exportSensorData()">
+                    <i class="fa-solid fa-download"></i> Export
+                  </button>
+                </div>
+              </div>
+
+              <!-- Sensor Tabs -->
+              <div class="sensor-tabs">
+                <button class="sensor-tab-btn active" onclick="setSensorType('pir')" id="pir-tab-btn">
+                  <i class="fa-solid fa-person-running"></i> PIR
+                </button>
+                <button class="sensor-tab-btn" onclick="setSensorType('sound')" id="sound-tab-btn">
+                  <i class="fa-solid fa-volume-high"></i> sound
+                </button>
+                <button class="sensor-tab-btn" onclick="setSensorType('combined')" id="combined-tab-btn">
+                  <i class="fa-solid fa-layer-group"></i> Combined View
+                </button>
+              </div>
+            </div>
+
+            <!-- ESP32 Connection Status -->
+            <div class="esp32-status online" id="esp32-status">
+              <span class="esp32-status-dot"></span>
+              <span id="esp32-status-text">ESP32: ONLINE</span>
+            </div>
+
+            <!-- Chart Container -->
+            <div class="chart-container">
+              <canvas id="sensor-chart"></canvas>
+            </div>
+          </div>
+
+          <!-- Raw Data Card -->
+          <div class="glass-card">
+            <div class="card-header">
+              <h2><i class="fa-solid fa-database" style="color: #8b5cf6;"></i> Raw Data</h2>
+              <span class="header-tag">Real-time ESP32 Records</span>
+            </div>
+
+            <!-- Raw Data Controls -->
+            <div class="raw-data-controls">
+              <div class="raw-data-filters">
+                <div class="date-picker-wrapper">
+                  <input type="date" id="raw-data-date" class="date-input">
+                  <i class="fa-solid fa-calendar"></i>
+                </div>
+                <button class="raw-data-btn search-btn" onclick="searchRawData()">
+                  <i class="fa-solid fa-search"></i> Search
+                </button>
+                <button class="raw-data-btn reset-btn" onclick="resetRawData()">
+                  <i class="fa-solid fa-rotate-left"></i> Reset
+                </button>
+              </div>
+            </div>
+
+            <!-- Raw Data Table -->
+            <div class="raw-data-table-container">
+              <table class="raw-data-table">
+                <thead>
+                  <tr>
+                    <th><i class="fa-solid fa-clock"></i> TIMESTAMP</th>
+                    <th><i class="fa-solid fa-person-running"></i> PIR</th>
+                    <th><i class="fa-solid fa-volume-high"></i> SOUND</th>
+                  </tr>
+                </thead>
+                <tbody id="raw-data-table-body">
+                  <tr>
+                    <td colspan="3" style="text-align: center; padding: 2rem; color: var(--text-muted);">
+                      <i class="fa-solid fa-circle-info" style="font-size: 1.5rem; margin-bottom: 0.5rem; color: var(--text-dim);"></i>
+                      <p style="font-weight: 600;">Waiting for ESP32 data...</p>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Pagination -->
+            <div class="raw-data-pagination">
+              <div class="pagination-info" id="raw-data-pagination-info">Showing 0 to 0 of 0 records</div>
+              <div class="pagination-buttons">
+                <button class="page-btn" id="raw-data-prev-btn" onclick="prevRawDataPage()">
+                  <i class="fa-solid fa-chevron-left"></i> Previous
+                </button>
+                <button class="page-btn" id="raw-data-next-btn" onclick="nextRawDataPage()">
+                  Next <i class="fa-solid fa-chevron-right"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: Camera Elephant Detection -->
+    <div id="camera-tab" class="tab-pane">
+      <div class="camera-grid">
+        
+        <!-- Left: Live Camera Status & Detection Feed -->
+        <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+          
+          <!-- Live Camera Status Card -->
+          <div class="glass-card">
+            <div class="card-header">
+              <h2><i class="fa-solid fa-camera" style="color: #10b981;"></i> Live Camera Elephant Detection</h2>
+              <span class="header-tag">Webcam Feed</span>
+            </div>
+
+            <div class="status-list">
+              <div class="status-row">
+                <div class="status-label">
+                  <i class="fa-solid fa-video"></i> Camera Status
+                </div>
+                <div class="status-value" id="cam-status-val">OFFLINE</div>
+              </div>
+              <div class="status-row">
+                <div class="status-label">
+                  <i class="fa-solid fa-eye"></i> Detection Status
+                </div>
+                <div class="status-value" id="cam-detection-val">N/A</div>
+              </div>
+              <div class="status-row">
+                <div class="status-label">
+                  <i class="fa-solid fa-paw"></i> Elephant Count
+                </div>
+                <div class="status-value" id="cam-count-val">0</div>
+              </div>
+              <div class="status-row">
+                <div class="status-label">
+                  <i class="fa-solid fa-bullseye"></i> Confidence
+                </div>
+                <div class="status-value" id="cam-confidence-val">0.0%</div>
+              </div>
+              <div class="status-row">
+                <div class="status-label">
+                  <i class="fa-solid fa-clock"></i> Last Detection
+                </div>
+                <div class="status-value" id="cam-time-val">N/A</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Latest Detection Image View -->
+          <div class="glass-card">
+            <div class="card-header">
+              <h2><i class="fa-solid fa-image" style="color: #06b6d4;"></i> Latest Detection Image</h2>
+              <span class="header-tag">Bounding Box View</span>
+            </div>
+            <div class="live-image-container" id="live-feed-view">
+              <div class="live-image-placeholder">
+                <i class="fa-solid fa-video-slash"></i>
+                <p style="font-weight: 600;">No Recent Bounding Box Image Available</p>
+                <p style="font-size: 0.75rem; color: var(--text-dim);">When elephants are detected by the webcam, bounding-box images will be rendered here.</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Right: Detection History & Image Gallery -->
+        <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+
+          <!-- Detection History Card -->
+          <div class="glass-card">
+            <div class="card-header">
+              <h2><i class="fa-solid fa-history" style="color: #f59e0b;"></i> Detection History</h2>
+              <span class="header-tag">CSV Dataset Log</span>
+            </div>
+
+            <div class="history-controls">
+              <div class="controls-left">
+                <div class="search-input-wrapper">
+                  <i class="fa-solid fa-search"></i>
+                  <input type="text" id="camera-search" class="search-input" placeholder="Search by date, time, count, confidence...">
+                </div>
+                <select id="camera-filter" class="filter-select">
+                  <option value="all">All Records</option>
+                  <option value="alert">🐘 Elephant Detected</option>
+                  <option value="safe">Safe (No Elephant)</option>
+                </select>
+              </div>
+              <div class="controls-right">
+                <button class="action-btn" onclick="refreshCameraTab()">
+                  <i class="fa-solid fa-sync"></i> Refresh
+                </button>
+                <a href="/api/detections/download" class="action-btn" download>
+                  <i class="fa-solid fa-download"></i> Download CSV
+                </a>
+              </div>
+            </div>
+
+            <div class="table-wrapper">
+              <table class="history-table">
+                <thead>
+                  <tr>
+                    <th onclick="sortTable('date')">Date <i class="fa-solid fa-sort"></i></th>
+                    <th onclick="sortTable('time')">Time <i class="fa-solid fa-sort"></i></th>
+                    <th onclick="sortTable('detection')">Detection <i class="fa-solid fa-sort"></i></th>
+                    <th onclick="sortTable('count')">Count <i class="fa-solid fa-sort"></i></th>
+                    <th onclick="sortTable('confidence')">Confidence <i class="fa-solid fa-sort"></i></th>
+                    <th>Image</th>
+                  </tr>
+                </thead>
+                <tbody id="history-table-body">
+                  <tr>
+                    <td colspan="6" style="text-align: center; padding: 2rem; color: var(--text-muted);">
+                      <i class="fa-solid fa-circle-info" style="font-size: 1.5rem; margin-bottom: 0.5rem; color: var(--text-dim);"></i>
+                      <p style="font-weight: 600;">Loading detection history...</p>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="pagination">
+              <div class="pagination-buttons">
+                <button class="page-btn" id="prev-page-btn" onclick="prevPage()">
+                  <i class="fa-solid fa-chevron-left"></i> Previous
+                </button>
+                <button class="page-btn" id="next-page-btn" onclick="nextPage()">
+                  Next <i class="fa-solid fa-chevron-right"></i>
+                </button>
+              </div>
+              <div id="pagination-info">Showing 0 to 0 of 0 records</div>
+            </div>
+          </div>
+
+          <!-- Detected Elephant Images Gallery -->
+          <div class="glass-card">
+            <div class="card-header">
+              <h2><i class="fa-solid fa-images" style="color: #8b5cf6;"></i> Detected Elephant Images</h2>
+              <span class="header-tag">Image Gallery</span>
+            </div>
+            <div id="gallery-grid-container" class="gallery-grid">
+              <div class="gallery-placeholder">
+                <i class="fa-solid fa-image" style="font-size: 3rem; color: var(--text-dim);"></i>
+                <p style="font-weight: 600; margin-top: 0.5rem;">Loading image gallery...</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: Alert Management -->
+    <div id="alerts-tab" class="tab-pane">
+      <div class="grid-dashboard">
+        
+        <!-- Left: Alert History -->
+        <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+          <div class="glass-card">
+            <div class="card-header">
+              <h2><i class="fa-solid fa-bell" style="color: #f59e0b;"></i> Alert History</h2>
+              <span class="header-tag">Confirmed Elephant Events</span>
+            </div>
+            <div class="table-wrapper">
+              <table class="history-table">
+                <thead>
+                  <tr>
+                    <th>Time</th>
+                    <th>Count</th>
+                    <th>Confidence</th>
+                    <th>Web Push Status</th>
+                  </tr>
+                </thead>
+                <tbody id="alerts-table-body">
+                  <tr>
+                    <td colspan="4" style="text-align: center; padding: 2rem; color: var(--text-muted);">
+                      <i class="fa-solid fa-circle-info" style="font-size: 1.5rem; margin-bottom: 0.5rem; color: var(--text-dim);"></i>
+                      <p style="font-weight: 600;">Loading alert history...</p>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Alert Status -->
+          <div class="glass-card">
+            <div class="card-header">
+              <h2><i class="fa-solid fa-signal" style="color: #10b981;"></i> Alert System Status</h2>
+              <span class="header-tag">Real-time State</span>
+            </div>
+            <div class="status-list">
+              <div class="status-row">
+                <div class="status-label">
+                  <i class="fa-solid fa-circle-notch"></i> Current State
+                </div>
+                <div class="status-value" id="alert-state-val">NO_DETECTION</div>
+              </div>
+              <div class="status-row">
+                <div class="status-label">
+                  <i class="fa-solid fa-layer-group"></i> Consecutive Detections
+                </div>
+                <div class="status-value" id="alert-consecutive-val">0</div>
+              </div>
+              <div class="status-row">
+                <div class="status-label">
+                  <i class="fa-solid fa-percent"></i> Avg Confidence
+                </div>
+                <div class="status-value" id="alert-confidence-val">0%</div>
+              </div>
+              <div class="status-row">
+                <div class="status-label">
+                  <i class="fa-solid fa-clock"></i> Time Since Last Alert
+                </div>
+                <div class="status-value" id="alert-time-val">N/A</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Notification Management -->
+        <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+          
+          <!-- Web Push Subscription -->
+          <div class="glass-card">
+            <div class="card-header">
+              <h2><i class="fa-solid fa-bell" style="color: #06b6d4;"></i> Web Push Notifications</h2>
+              <span class="header-tag">Browser Alerts</span>
+            </div>
+            <div class="push-subscription-section">
+              <div class="push-status" id="push-status">Initializing...</div>
+              <div class="push-buttons">
+                <button class="action-btn" id="push-subscribe-btn" onclick="handlePushSubscribe()">
+                  <i class="fa-solid fa-bell"></i> Subscribe
+                </button>
+                <button class="action-btn" id="push-unsubscribe-btn" onclick="handlePushUnsubscribe()">
+                  <i class="fa-solid fa-bell-slash"></i> Unsubscribe
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Alert Configuration -->
+          <div class="glass-card">
+            <div class="card-header">
+              <h2><i class="fa-solid fa-cog" style="color: #8b5cf6;"></i> Alert Configuration</h2>
+              <span class="header-tag">Settings</span>
+            </div>
+            <div class="config-section">
+              <div class="config-row">
+                <label>Confirmation Frames:</label>
+                <span id="config-frames">3</span>
+              </div>
+              <div class="config-row">
+                <label>Min Confidence:</label>
+                <span id="config-confidence">50%</span>
+              </div>
+              <div class="config-row">
+                <label>Alert Cooldown:</label>
+                <span id="config-cooldown">300 seconds</span>
+              </div>
+              <button class="action-btn" onclick="resetAlertCooldown()">
+                Reset Cooldown (Test)
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    </div>
+
+  </main>
+
+  <!-- Image Modal Overlay -->
+  <div id="image-modal" class="modal">
+    <div class="modal-content-wrapper">
+      <button class="modal-close" id="modal-close-btn">&times;</button>
+      <img class="modal-img" id="modal-image-view" alt="Detection Image">
+      <div class="modal-caption" id="modal-caption-text"></div>
+    </div>
+  </div>
+
+  <!-- Leaflet Map JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Application JS Modules -->
+  <script src="{{ url_for('static', filename='js/sensor_nodes.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/map.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/dss.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/sensor_monitoring.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/camera_detection.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/push_subscription.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/alerts.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/elephant_popup.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+
+  <!-- Elephant Detection Popup -->
+  <div class="elephant-popup-overlay" id="elephant-popup-overlay"></div>
+  <div class="elephant-popup" id="elephant-popup">
+    <div class="elephant-popup-header">
+      <div class="elephant-popup-icon">🐘</div>
+      <div class="elephant-popup-title">ELEPHANT DETECTED</div>
+    </div>
+    <div class="elephant-popup-content">
+      <div class="elephant-popup-row">
+        <span class="elephant-popup-label">Elephant Count:</span>
+        <span class="elephant-popup-value highlight" id="popup-count">0</span>
+      </div>
+      <div class="elephant-popup-row">
+        <span class="elephant-popup-label">Confidence:</span>
+        <span class="elephant-popup-value" id="popup-confidence">0%</span>
+      </div>
+      <div class="elephant-popup-row">
+        <span class="elephant-popup-label">PIR:</span>
+        <span class="elephant-popup-value" id="popup-pir">N/A</span>
+      </div>
+      <div class="elephant-popup-row">
+        <span class="elephant-popup-label">Sound:</span>
+        <span class="elephant-popup-value" id="popup-sound">N/A</span>
+      </div>
+      <div class="elephant-popup-row">
+        <span class="elephant-popup-label">Time:</span>
+        <span class="elephant-popup-value" id="popup-time">--:--</span>
+      </div>
+    </div>
+    <div class="elephant-popup-actions">
+      <button class="elephant-popup-btn dismiss" onclick="dismissElephantPopup()">Dismiss</button>
+      <button class="elephant-popup-btn view" onclick="viewDetection()">View Detection</button>
+    </div>
+  </div>
+
+</body>
+</html>
