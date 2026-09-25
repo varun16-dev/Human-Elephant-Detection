@@ -2154,6 +2154,18 @@ def unsubscribe_push():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route('/api/alert/whatsapp', methods=['POST'])
+def trigger_whatsapp_alert():
+    try:
+        import whatsapp_service
+        success, info = whatsapp_service.send_test_whatsapp()
+        if success:
+            return jsonify({"status": "success", "info": info})
+        return jsonify({"status": "error", "message": str(info)}), 500
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
 # ==============================================================================
 # Sensor Monitoring API Endpoints
 # ==============================================================================
@@ -2846,10 +2858,67 @@ def export_supabase_detections_csv():
         print(f"[SUPABASE] Error exporting detections CSV: {e}")
         return jsonify({"error": str(e)}), 500
 
-if __name__ == '__main__':
-    print("Starting Integrated IoT and Edge-AI Acoustic Early Warning System Server...")
-    print("Serving on http://127.0.0.1:5000")
+DEMO_PROCESSES = []
+
+def start_demo_services():
+    print("==================================================")
+    print("        COMPLETE SYSTEM - DEMO MODE")
+    print("==================================================")
     
+    print("[SERVER] Backend server starting")
+    
+    # 1. Fall detection
+    fall_detect_script = os.path.abspath(os.path.join(base_dir, '..', 'WelcomeScreen', 'fall_final', 'human_fall_detect_final_count.py'))
+    try:
+        if os.path.exists(fall_detect_script):
+            p1 = subprocess.Popen([sys.executable, fall_detect_script], cwd=os.path.dirname(fall_detect_script))
+            DEMO_PROCESSES.append(p1)
+            print("[✓] Fall detection starting")
+        else:
+            print(f"[X] Fall detection failed: Script not found at {fall_detect_script}")
+    except Exception as e:
+        print(f"[X] Fall detection failed: {e}")
+        
+    # 2. Camera Monitor
+    monitor_script = os.path.abspath(os.path.join(base_dir, 'camera_alert_monitor.py'))
+    try:
+        p2 = subprocess.Popen([sys.executable, monitor_script], cwd=base_dir)
+        DEMO_PROCESSES.append(p2)
+        print("[✓] Camera monitor starting")
+    except Exception as e:
+        print(f"[X] Camera monitor failed: {e}")
+        
+    # 3. WhatsApp Service
+    whatsapp_dir = os.path.abspath(os.path.join(base_dir, '..', 'whatsapp-service'))
+    try:
+        npm_cmd = 'npm.cmd' if sys.platform == 'win32' else 'npm'
+        p3 = subprocess.Popen([npm_cmd, 'start'], cwd=whatsapp_dir)
+        DEMO_PROCESSES.append(p3)
+        print("[✓] WhatsApp service starting")
+    except Exception as e:
+        print(f"[X] WhatsApp service failed: {e}")
+
+    print("==================================================")
+    print("        SYSTEM READY")
+    print("==================================================")
+    print("Dashboard:")
+    print("http://127.0.0.1:5000")
+    print("==================================================")
+
+def cleanup_demo_services(*args):
+    print("\n[SERVER] Shutting down demo services...")
+    for p in DEMO_PROCESSES:
+        try:
+            p.terminate()
+            p.wait(timeout=3)
+        except:
+            try:
+                p.kill()
+            except:
+                pass
+    sys.exit(0)
+
+if __name__ == '__main__':
     # Initialize all nodes with reverse geocoding on startup
     print("[GEOCODE] Initializing all node locations with reverse geocoding...")
     for i, node in enumerate(NODES_DATA):
@@ -2858,4 +2927,14 @@ if __name__ == '__main__':
         node['name'] = f"Node {node_num} - {node['location']}"
         print(f"[GEOCODE] Node {node_num} initial location: {node['location']}")
     
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    import signal
+    import atexit
+    
+    # We use debug=False for the demo to prevent the Werkzeug reloader from spawning duplicate child processes
+    start_demo_services()
+    signal.signal(signal.SIGINT, cleanup_demo_services)
+    signal.signal(signal.SIGTERM, cleanup_demo_services)
+    atexit.register(cleanup_demo_services)
+    
+    app.run(host='0.0.0.0', port=5000, debug=False)
+

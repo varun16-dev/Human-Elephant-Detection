@@ -447,8 +447,19 @@ function triggerAllDeterrents() {
   }, 500);
 }
 
-function broadcastSMSAlert() {
-  alert("📱 SMS ALERT DISPATCHED: 'EMERGENCY WARNING - Elephant herd detected near Jigani-Anekal boundary. Stay indoors & avoid farm roads.' Sent to 342 residents.");
+async function broadcastSMSAlert() {
+  try {
+    const response = await fetch('/api/alert/whatsapp', { method: 'POST' });
+    const result = await response.json();
+    if (result.status === 'success') {
+      alert("📱 WhatsApp Alert Dispatched Successfully!");
+    } else {
+      alert("Failed to send WhatsApp alert: " + (result.message || "Unknown error"));
+    }
+  } catch (err) {
+    console.error("Error sending WhatsApp:", err);
+    alert("Error sending WhatsApp alert.");
+  }
 }
 
 // Periodically sync deterrent state with server to reflect ESP32 hardware state

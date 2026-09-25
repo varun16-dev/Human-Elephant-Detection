@@ -136,6 +136,7 @@ function getNotificationBadge(status) {
 
 // Poll alert status
 async function pollAlertStatus() {
+  if (!document.getElementById('alerts-tab')?.classList.contains('active')) return;
   try {
     const response = await fetch('/api/alerts/status');
     const data = await response.json();

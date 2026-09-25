@@ -77,6 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // 1. LIVE CAMERA STATUS & DETECTION FEED
 // ==========================================
 function pollCameraStatus() {
+  if (!document.getElementById('camera-tab')?.classList.contains('active')) return;
   fetch('/api/camera/status')
     .then(res => {
       if (!res.ok) throw new Error('API server unavailable');
@@ -154,6 +155,7 @@ function updateLiveStatusUI(data) {
 // 2. DETECTION HISTORY DATASET LOG
 // ==========================================
 function loadHistoryData() {
+  if (!document.getElementById('camera-tab')?.classList.contains('active')) return;
   console.log("[DETECTION] Loading detection history from Supabase...");
   
   // Build query parameters
@@ -390,6 +392,7 @@ function handleSearchAndFilter() {
 // 3. DETECTED ELEPHANT IMAGES GALLERY
 // ==========================================
 function loadGalleryImages() {
+  if (!document.getElementById('camera-tab')?.classList.contains('active')) return;
   console.log("[GALLERY] Loading elephant images from Supabase...");
   
   // Query for elephant detections with images

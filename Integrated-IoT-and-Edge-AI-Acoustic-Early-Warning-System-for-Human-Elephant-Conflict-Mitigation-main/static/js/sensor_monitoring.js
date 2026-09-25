@@ -581,6 +581,7 @@ function startSensorUpdates() {
     if (autoRefreshEnabled) {
         console.log(`[ESP32] Starting standalone auto-refresh with ${AUTO_REFRESH_INTERVAL}ms interval`);
         updateInterval = setInterval(() => {
+            if (!document.getElementById('sensor-monitoring-tab')?.classList.contains('active')) return;
             console.log("[ESP32] Standalone auto-refresh cycle starting...");
             updateSensorStatus();
             // Auto-update chart and raw data regardless of live ESP32 status
