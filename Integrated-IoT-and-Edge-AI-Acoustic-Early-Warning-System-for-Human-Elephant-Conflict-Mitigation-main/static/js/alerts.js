@@ -47,9 +47,9 @@ function renderAlertHistory() {
   if (alertHistory.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="5" style="text-align: center; padding: 2rem; color: var(--text-muted);">
+        <td colspan="6" style="text-align: center; padding: 2rem; color: var(--text-muted);">
           <i class="fa-solid fa-circle-info" style="font-size: 1.5rem; margin-bottom: 0.5rem; color: var(--text-dim);"></i>
-          <p style="font-weight: 600;">No confirmed elephant alerts yet</p>
+          <p style="font-weight: 600;">No detection events yet</p>
         </td>
       </tr>
     `;
@@ -58,35 +58,70 @@ function renderAlertHistory() {
   
   tbody.innerHTML = '';
   
-  // Show most recent 20 alerts
-  const recentAlerts = alertHistory.slice(-20).reverse();
+  // Show most recent 20 events
+  const recentEvents = alertHistory.slice(-20).reverse();
   
-  recentAlerts.forEach(alert => {
-    const timestamp = alert.timestamp || 'N/A';
+  recentEvents.forEach(event => {
+    const timestamp = event.timestamp || 'N/A';
     const time = timestamp.split('T')[1]?.split('.')[0] || timestamp;
-    const count = alert.elephant_count || 0;
-    const confidence = alert.confidence || 0;
     
-    const webPushStatus = alert.delivery_status?.web_push;
-    const webPushBadge = getStatusBadge(webPushStatus);
+    // Determine event type and styling
+    const eventType = event.event_type || event.alert_type || 'UNKNOWN';
+    const isActivity = eventType === 'ACTIVITY_DETECTED' || eventType === 'ACTIVITY_VERIFIED_NO_ELEPHANT';
+    const isElephant = eventType === 'ELEPHANT_DETECTED' || eventType === 'ELEPHANT_CONFIRMED';
+    
+    let typeBadge = '';
+    let rowClass = '';
+    
+    if (isActivity) {
+      typeBadge = '<span class="badge-det warning">⚠️ Activity</span>';
+      rowClass = 'activity-row';
+    } else if (isElephant) {
+      typeBadge = '<span class="badge-det critical">🐘 Elephant</span>';
+      rowClass = 'elephant-row';
+    } else {
+      typeBadge = '<span class="badge-det no">Unknown</span>';
+    }
+    
+    // Get trigger source for activity events
+    const triggerSource = event.trigger_source || '-';
+    const location = event.location || '-';
+    const cameraStatus = event.camera_verification || '-';
+    
+    // Get notification status
+    const webPushStatus = event.delivery_status?.web_push;
+    const notificationBadge = getNotificationBadge(webPushStatus);
     
     tbody.innerHTML += `
-      <tr>
+      <tr class="${rowClass}">
         <td>${time}</td>
-        <td><strong>${count}</strong></td>
-        <td>${confidence}%</td>
-        <td>${webPushBadge}</td>
+        <td>${typeBadge}</td>
+        <td>${triggerSource}</td>
+        <td>${location}</td>
+        <td>${cameraStatus}</td>
+        <td>${notificationBadge}</td>
       </tr>
     `;
   });
 }
 
-// Get status badge HTML
-function getStatusBadge(status) {
+// Get notification badge HTML
+function getNotificationBadge(status) {
   if (!status) return '<span class="badge-det no">N/A</span>';
   
-  const webPushStatus = status.web_push;
+  // Handle both old format (web_push object with roles) and new format (simple status)
+  if (typeof status === 'string') {
+    if (status === 'sent') {
+      return '<span class="badge-det yes">✓ Sent</span>';
+    } else if (status === 'failed') {
+      return '<span class="badge-det no">✗ Failed</span>';
+    } else {
+      return '<span class="badge-det no">Pending</span>';
+    }
+  }
   
+  // Old format with roles
+  const webPushStatus = status.web_push;
   const forestStatus = webPushStatus?.forest_officers || 'pending';
   const villagerStatus = webPushStatus?.villagers || 'pending';
   
@@ -116,10 +151,13 @@ async function pollAlertStatus() {
 // Update alert status UI
 function updateAlertStatusUI(status) {
   const stateVal = document.getElementById('alert-state-val');
+  const activityStateVal = document.getElementById('activity-state-val');
   const consecutiveVal = document.getElementById('alert-consecutive-val');
   const confidenceVal = document.getElementById('alert-confidence-val');
   const timeVal = document.getElementById('alert-time-val');
+  const activityTimeVal = document.getElementById('activity-time-val');
   
+  // Elephant detection state
   if (stateVal) {
     stateVal.textContent = status.state || 'NO_DETECTION';
     stateVal.className = 'status-value';
@@ -130,6 +168,22 @@ function updateAlertStatusUI(status) {
       stateVal.style.color = '#f59e0b';
     } else {
       stateVal.style.color = '#10b981';
+    }
+  }
+  
+  // Activity detection state
+  if (activityStateVal) {
+    activityStateVal.textContent = status.activity_state || 'IDLE';
+    activityStateVal.className = 'status-value';
+    
+    if (status.activity_state === 'ACTIVITY_DETECTED' || status.activity_state === 'CAMERA_PENDING') {
+      activityStateVal.style.color = '#f59e0b';
+    } else if (status.activity_state === 'CAMERA_VERIFIED_ELEPHANT') {
+      activityStateVal.style.color = '#ef4444';
+    } else if (status.activity_state === 'CAMERA_VERIFIED_NO_ELEPHANT') {
+      activityStateVal.style.color = '#10b981';
+    } else {
+      activityStateVal.style.color = '#6b7280';
     }
   }
   
@@ -150,6 +204,15 @@ function updateAlertStatusUI(status) {
       timeVal.textContent = 'N/A';
     }
   }
+  
+  if (activityTimeVal) {
+    const timeSinceActivity = status.time_since_last_activity || 0;
+    if (timeSinceActivity > 0) {
+      activityTimeVal.textContent = `${Math.floor(timeSinceActivity)}s ago`;
+    } else {
+      activityTimeVal.textContent = 'N/A';
+    }
+  }
 }
 
 // Load alert configuration
@@ -167,47 +230,3 @@ function loadAlertConfig() {
 
 // These functions are implemented in push_subscription.js
 // handlePushSubscribe, handlePushUnsubscribe, sendTestPush
-
-// Reset alert cooldown
-async function resetAlertCooldown() {
-  if (!confirm('Reset alert cooldown? This is for testing only.')) return;
-  
-  try {
-    const response = await fetch('/api/alerts/reset-cooldown', {
-      method: 'POST'
-    });
-    
-    const result = await response.json();
-    
-    if (result.success) {
-      alert('Alert cooldown reset successfully');
-      pollAlertStatus(); // Refresh status
-    } else {
-      alert('Failed to reset cooldown');
-    }
-  } catch (error) {
-    alert(`Error: ${error.message}`);
-  }
-}
-
-// Reset alert cooldown
-async function resetAlertCooldown() {
-  if (!confirm('Reset alert cooldown? This is for testing only.')) return;
-  
-  try {
-    const response = await fetch('/api/alerts/reset-cooldown', {
-      method: 'POST'
-    });
-    
-    const result = await response.json();
-    
-    if (result.success) {
-      alert('Alert cooldown reset successfully');
-      pollAlertStatus(); // Refresh status
-    } else {
-      alert('Failed to reset cooldown');
-    }
-  } catch (error) {
-    alert(`Error: ${error.message}`);
-  }
-}

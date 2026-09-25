@@ -7,8 +7,8 @@ HARDWARE
 ------------------------------------------------------------
 PIR SENSOR       -> D19
 SOUND SENSOR DO  -> D18
-RELAY            -> D23
-STATUS LED       -> D22
+RELAY (Strobe)   -> D23 (Controls physical strobe light)
+STATUS LED       -> D22 (Local status indicator)
 
 GPS TX           -> ESP32 D16
 GPS RX           -> ESP32 D17
@@ -21,11 +21,19 @@ FUNCTION
 ------------------------------------------------------------
 PIR OR SOUND DETECTION
         ↓
-5 SECOND ALERT
-        ↓
-LED + RELAY BLINK
+5 SECOND ALERT (Sensors only - no LED/RELAY control)
         ↓
 DATA SENT TO YOUR DASHBOARD
+
+LED STROBE CONTROL
+        ↓
+MANUAL DASHBOARD CONTROL ONLY
+        ↓
+ON: Both Relay and LED blink together continuously
+        ↓
+OFF: Both Relay and LED completely OFF immediately
+        ↓
+NO AUTOMATIC TRIGGERS
 
 NO MAKE CLOUD
 NO EXTERNAL CLOUD API
@@ -55,6 +63,18 @@ NO EXTERNAL CLOUD API
 
 #define RELAY_PIN     23
 #define LED_PIN       22
+#define ONBOARD_LED_PIN 2
+
+// ============================================================
+// RELAY CONTROL CONSTANTS
+// ============================================================
+// Active-LOW relay module:
+// RELAY_ON  = LOW   (Relay energized / closed)
+// RELAY_OFF = HIGH  (Relay de-energized / open)
+// ============================================================
+
+#define RELAY_ON  LOW
+#define RELAY_OFF HIGH
 
 #define GPS_RX_PIN    16
 #define GPS_TX_PIN    17
@@ -146,10 +166,6 @@ const unsigned long WIFI_CHECK_INTERVAL = 5000;
 const unsigned long ALERT_DURATION = 5000;
 
 
-// LED / relay blink speed
-const unsigned long BLINK_INTERVAL = 250;
-
-
 // ============================================================
 // SENSOR VARIABLES
 // ============================================================
@@ -160,7 +176,7 @@ bool soundDetected = false;
 
 
 // ============================================================
-// GPS VARIABLES
+// GPS VARIABLES & LIVE LOCATION
 // ============================================================
 
 bool gpsFix = false;
@@ -170,6 +186,8 @@ double latitude = 0.0;
 double longitude = 0.0;
 
 int satellites = 0;
+
+unsigned long lastGpsByteTime = 0;
 
 
 // ============================================================
@@ -194,9 +212,19 @@ bool alertActive = false;
 
 unsigned long alertStartTime = 0;
 
-unsigned long lastBlinkTime = 0;
 
-bool blinkState = false;
+// ============================================================
+// STROBE CONTROL VARIABLES (Global for state management)
+// ============================================================
+
+bool strobeLightManualControl = false;  // Manual control from dashboard
+bool strobeLightState = false;          // Current strobe light state
+unsigned long strobeBlinkInterval = 250;  // Blink every 250ms
+unsigned long lastStrobeBlinkTime = 0;
+bool strobeBlinkState = false;          // Current blink state
+
+
+
 
 
 // ============================================================
@@ -253,6 +281,10 @@ void updateLCD();
 
 void sendDataToDashboard();
 
+void handleActuatorCommand();
+
+void handleManualStrobe();
+
 
 // ============================================================
 // SETUP
@@ -292,11 +324,8 @@ void setup()
 
   pinMode(RELAY_PIN, OUTPUT);
 
-  // Relay OFF at startup
-  digitalWrite(
-    RELAY_PIN,
-    LOW
-  );
+  // Force relay OFF at startup
+  digitalWrite(RELAY_PIN, RELAY_OFF);
 
 
   // ========================================================
@@ -304,11 +333,26 @@ void setup()
   // ========================================================
 
   pinMode(LED_PIN, OUTPUT);
+  pinMode(ONBOARD_LED_PIN, OUTPUT);
 
-  digitalWrite(
-    LED_PIN,
-    LOW
-  );
+  // LED OFF at startup
+  digitalWrite(LED_PIN, LOW);
+  digitalWrite(ONBOARD_LED_PIN, LOW);
+
+
+  // ========================================================
+  // INITIALIZE STROBE STATE
+  // ========================================================
+
+  strobeLightManualControl = false;
+  strobeLightState = false;
+  strobeBlinkState = false;
+  lastStrobeBlinkTime = 0;
+
+  // Force hardware OFF immediately at startup
+  digitalWrite(RELAY_PIN, RELAY_OFF);
+  digitalWrite(LED_PIN, LOW);
+  digitalWrite(ONBOARD_LED_PIN, LOW);
 
 
   // ========================================================
@@ -394,16 +438,32 @@ void setup()
 
   Serial.println("PIR       : D19");
   Serial.println("SOUND     : D18");
-  Serial.println("RELAY     : D23");
-  Serial.println("LED       : D22");
+  Serial.println("RELAY     : D23 (Physical Strobe - active-HIGH)");
+  Serial.println("LED       : D22 (Status LED - blinks with relay)");
   Serial.println("GPS RX    : D16");
   Serial.println("GPS TX    : D17");
   Serial.println("LCD SDA   : D25");
   Serial.println("LCD SCL   : D26");
 
   Serial.println();
+  Serial.println("LED STROBE: MANUAL CONTROL ONLY");
+  Serial.println("ON: Both relay and LED blink together");
+  Serial.println("OFF: Both relay and LED completely OFF immediately");
   Serial.println("Dashboard:");
   Serial.println(SERVER_URL);
+
+  // ========================================================
+  // START WEB SERVER FOR ACTUATOR COMMANDS
+  // ========================================================
+  
+  server.on(
+    "/actuator",
+    HTTP_POST,
+    handleActuatorCommand
+  );
+  
+  server.begin();
+  Serial.println("Web server started for actuator commands");
 
   Serial.println("========================================");
 }
@@ -422,6 +482,11 @@ void loop()
 
   if (configPortalActive)
   {
+    server.handleClient();
+  }
+  else
+  {
+    // Always handle web server requests for actuator commands
     server.handleClient();
   }
 
@@ -452,6 +517,13 @@ void loop()
   // ========================================================
 
   handleAlert();
+
+
+  // ========================================================
+  // HANDLE MANUAL STROBE CONTROL
+  // ========================================================
+
+  handleManualStrobe();
 
 
   // ========================================================
@@ -589,55 +661,33 @@ void readSound()
 
 void readGPS()
 {
-
-  while (
-    GPSSerial.available() > 0
-  )
+  while (GPSSerial.available() > 0)
   {
-
-    char c =
-      GPSSerial.read();
-
+    char c = GPSSerial.read();
     gps.encode(c);
+    lastGpsByteTime = millis();
   }
-
 
   // ========================================================
   // VALID GPS LOCATION
   // ========================================================
-
-  if (
-    gps.location.isValid()
-  )
+  if (gps.location.isValid())
   {
-
     gpsFix = true;
+    latitude = gps.location.lat();
+    longitude = gps.location.lng();
 
-    latitude =
-      gps.location.lat();
-
-    longitude =
-      gps.location.lng();
-
-
-    if (
-      gps.satellites.isValid()
-    )
+    if (gps.satellites.isValid())
     {
-
-      satellites =
-        gps.satellites.value();
+      satellites = gps.satellites.value();
     }
     else
     {
-
       satellites = 0;
     }
   }
-
   else
   {
-
     gpsFix = false;
   }
 }
@@ -649,10 +699,7 @@ void readGPS()
 //
 // PIR OR SOUND = ALERT
 //
-// Alert:
-// LED    -> BLINK
-// RELAY  -> BLINK
-// Duration = 5 seconds
+// NOTE: LED/RELAY automatic triggering REMOVED - strobe is now manual only
 // ============================================================
 
 void handleAlert()
@@ -677,36 +724,16 @@ void handleAlert()
 
 
   // ========================================================
-  // START ALERT
+  // START ALERT (Sensors only - no LED/RELAY control)
   // ========================================================
 
-  if (
-    newPIRDetection ||
-    newSoundDetection
-  )
+  if (newPIRDetection || newSoundDetection)
   {
 
     alertActive = true;
 
     alertStartTime =
       millis();
-
-    lastBlinkTime =
-      millis();
-
-    blinkState = true;
-
-
-    digitalWrite(
-      LED_PIN,
-      HIGH
-    );
-
-
-    digitalWrite(
-      RELAY_PIN,
-      HIGH
-    );
 
 
     Serial.println();
@@ -732,55 +759,17 @@ void handleAlert()
 
 
     Serial.println(
-      "LED: BLINKING"
-    );
-
-    Serial.println(
-      "RELAY: BLINKING"
-    );
-
-    Serial.println(
       "Duration: 5 seconds"
     );
   }
 
 
   // ========================================================
-  // RUN ALERT
+  // RUN ALERT (Sensors only - no LED/RELAY control)
   // ========================================================
 
   if (alertActive)
   {
-
-    // ------------------------------------------------------
-    // BLINK
-    // ------------------------------------------------------
-
-    if (
-      millis() - lastBlinkTime >=
-      BLINK_INTERVAL
-    )
-    {
-
-      lastBlinkTime =
-        millis();
-
-      blinkState =
-        !blinkState;
-
-
-      digitalWrite(
-        LED_PIN,
-        blinkState
-      );
-
-
-      digitalWrite(
-        RELAY_PIN,
-        blinkState
-      );
-    }
-
 
     // ------------------------------------------------------
     // STOP AFTER 5 SECONDS
@@ -794,25 +783,9 @@ void handleAlert()
 
       alertActive = false;
 
-      blinkState = false;
-
-
-      digitalWrite(
-        LED_PIN,
-        LOW
-      );
-
-
-      digitalWrite(
-        RELAY_PIN,
-        LOW
-      );
-
 
       Serial.println();
       Serial.println("ALERT ENDED");
-      Serial.println("LED: OFF");
-      Serial.println("RELAY: OFF");
     }
   }
 
@@ -946,7 +919,7 @@ void updateLCD()
     }
     else
     {
-      lcd.print("GPS: SEARCH");
+      lcd.print("Searching...");
     }
 
 
@@ -991,7 +964,7 @@ void updateLCD()
     else
     {
 
-      lcd.print("GPS: NO FIX");
+      lcd.print("Searching...");
     }
 
 
@@ -1010,7 +983,7 @@ void updateLCD()
     else
     {
 
-      lcd.print("Waiting...");
+      lcd.print("No Location");
     }
   }
 
@@ -1169,10 +1142,17 @@ void sendDataToDashboard()
   // LATITUDE
   json += "\"latitude\":";
 
-  json += String(
-    latitude,
-    6
-  );
+  if (gpsFix)
+  {
+    json += String(
+      latitude,
+      6
+    );
+  }
+  else
+  {
+    json += "null";
+  }
 
   json += ",";
 
@@ -1180,10 +1160,17 @@ void sendDataToDashboard()
   // LONGITUDE
   json += "\"longitude\":";
 
-  json += String(
-    longitude,
-    6
-  );
+  if (gpsFix)
+  {
+    json += String(
+      longitude,
+      6
+    );
+  }
+  else
+  {
+    json += "null";
+  }
 
   json += ",";
 
@@ -1191,9 +1178,16 @@ void sendDataToDashboard()
   // SATELLITES
   json += "\"satellites\":";
 
-  json += String(
-    satellites
-  );
+  if (gpsFix)
+  {
+    json += String(
+      satellites
+    );
+  }
+  else
+  {
+    json += "0";
+  }
 
   json += ",";
 
@@ -1216,6 +1210,22 @@ void sendDataToDashboard()
     WiFi.RSSI()
   );
 
+  json += ",";
+
+
+  // STROBE LIGHT STATE
+  json += "\"ledStrobe\":";
+
+  json += strobeLightState ? "true" : "false";
+
+  json += ",";
+
+
+  // STROBE MANUAL CONTROL
+  json += "\"strobeManualControl\":";
+
+  json += strobeLightManualControl ? "true" : "false";
+
 
   // CLOSE JSON
   json += "}";
@@ -1226,6 +1236,37 @@ void sendDataToDashboard()
   // ========================================================
 
   Serial.println();
+  Serial.println("----------------------------------------");
+
+  // GPS Diagnostics
+  bool gpsUartReceiving = (lastGpsByteTime > 0 && (millis() - lastGpsByteTime < 3000));
+  if (gpsUartReceiving)
+  {
+    Serial.println("GPS UART DATA: RECEIVING");
+  }
+  else
+  {
+    Serial.println("GPS UART DATA: NO DATA");
+  }
+
+  if (gpsFix)
+  {
+    Serial.println("GPS FIX: YES");
+    Serial.print("Latitude: ");
+    Serial.println(latitude, 6);
+    Serial.print("Longitude: ");
+    Serial.println(longitude, 6);
+    Serial.print("Satellites: ");
+    Serial.println(satellites);
+  }
+  else
+  {
+    Serial.println("GPS FIX: NO");
+    Serial.println("Latitude: unavailable");
+    Serial.println("Longitude: unavailable");
+    Serial.println("Satellites: 0");
+  }
+
   Serial.println("----------------------------------------");
   Serial.println("Sending data to YOUR dashboard:");
   Serial.println(json);
@@ -1509,6 +1550,13 @@ void startConfigPortal()
     "/save",
     HTTP_POST,
     handleSave
+  );
+
+
+  server.on(
+    "/actuator",
+    HTTP_POST,
+    handleActuatorCommand
   );
 
 
@@ -1831,4 +1879,160 @@ bool connectToWiFi(
 
 
   return false;
+}
+
+
+// ============================================================
+// HANDLE ACTUATOR COMMAND FROM DASHBOARD
+// ============================================================
+
+void handleActuatorCommand()
+{
+  Serial.println();
+  Serial.println("----------------------------------------");
+  Serial.println("Received actuator command from dashboard");
+
+
+  // Check if request has JSON body
+  if (!server.hasArg("plain"))
+  {
+    Serial.println("Error: No JSON body received");
+    server.send(400, "application/json", "{\"status\":\"error\",\"message\":\"No JSON body\"}");
+    return;
+  }
+
+
+  String jsonBody = server.arg("plain");
+  Serial.print("JSON received: ");
+  Serial.println(jsonBody);
+
+
+  // Parse JSON (simple manual parsing for this use case)
+  String actuator = "";
+  String action = "";
+
+
+  // Extract actuator
+  int actuatorIndex = jsonBody.indexOf("\"actuator\":");
+  if (actuatorIndex >= 0)
+  {
+    int valueStart = jsonBody.indexOf("\"", actuatorIndex + 11) + 1; // Skip ":"
+    int valueEnd = jsonBody.indexOf("\"", valueStart);
+    if (valueStart > 0 && valueEnd > valueStart)
+    {
+      actuator = jsonBody.substring(valueStart, valueEnd);
+    }
+  }
+
+
+  // Extract action
+  int actionIndex = jsonBody.indexOf("\"action\":");
+  if (actionIndex >= 0)
+  {
+    int valueStart = jsonBody.indexOf("\"", actionIndex + 9) + 1; // Skip ":"
+    int valueEnd = jsonBody.indexOf("\"", valueStart);
+    if (valueStart > 0 && valueEnd > valueStart)
+    {
+      action = jsonBody.substring(valueStart, valueEnd);
+    }
+  }
+
+
+  Serial.print("Actuator: ");
+  Serial.println(actuator);
+  Serial.print("Action: ");
+  Serial.println(action);
+
+
+  // Process strobe light command
+  if (actuator == "strobe_light")
+  {
+    if (action == "on" || (action == "toggle" && !strobeLightState))
+    {
+      strobeLightManualControl = true;
+      strobeLightState = true;
+      strobeBlinkState = false;
+      lastStrobeBlinkTime = millis();
+      
+      // Initialize relay and LEDs in OFF state - handleManualStrobe() performs the blinking cycle
+      digitalWrite(RELAY_PIN, RELAY_OFF);
+      digitalWrite(LED_PIN, LOW);
+      digitalWrite(ONBOARD_LED_PIN, LOW);
+      
+      Serial.println("STROBE LIGHT: ON (Continuous blinking started)");
+      
+      String response = "{\"status\":\"success\",\"actuator\":\"strobe_light\",\"state\":\"on\",\"message\":\"Strobe light turned ON - continuous blinking\"}";
+      server.send(200, "application/json", response);
+    }
+    else if (action == "off" || (action == "toggle" && strobeLightState))
+    {
+      // IMMEDIATELY force OFF - do this first
+      strobeLightManualControl = false;
+      strobeLightState = false;
+      strobeBlinkState = false;
+      
+      // IMMEDIATELY turn OFF both relay and status LED
+      digitalWrite(RELAY_PIN, RELAY_OFF);
+      digitalWrite(LED_PIN, LOW);
+      digitalWrite(ONBOARD_LED_PIN, LOW);
+      
+      Serial.println("STROBE LIGHT: OFF (IMMEDIATE - Hardware forced OFF)");
+      
+      String response = "{\"status\":\"success\",\"actuator\":\"strobe_light\",\"state\":\"off\",\"message\":\"Strobe light turned OFF immediately\"}";
+      server.send(200, "application/json", response);
+    }
+    else
+    {
+      Serial.println("Error: Invalid action for strobe_light");
+      String response = "{\"status\":\"error\",\"message\":\"Invalid action\"}";
+      server.send(400, "application/json", response);
+    }
+  }
+  else
+  {
+    Serial.println("Error: Unknown actuator");
+    String response = "{\"status\":\"error\",\"message\":\"Unknown actuator\"}";
+    server.send(400, "application/json", response);
+  }
+}
+
+// ============================================================
+// HANDLE MANUAL STROBE CONTROL
+// ============================================================
+// Continuous non-blocking blink control for manual strobe operation
+// Both relay and LED blink together when strobe is active
+// ============================================================
+
+void handleManualStrobe()
+{
+  // IF strobe is disabled, immediately force hardware OFF and return
+  if (strobeLightManualControl == false || strobeLightState == false)
+  {
+    strobeBlinkState = false;
+    digitalWrite(RELAY_PIN, RELAY_OFF);
+    digitalWrite(LED_PIN, LOW);
+    digitalWrite(ONBOARD_LED_PIN, LOW);
+    return;
+  }
+  
+  // OTHERWISE strobe is enabled - use non-blocking blink
+  if (millis() - lastStrobeBlinkTime >= strobeBlinkInterval)
+  {
+    lastStrobeBlinkTime = millis();
+    strobeBlinkState = !strobeBlinkState;
+    
+    // Toggle both relay and LED together using relay constants
+    if (strobeBlinkState)
+    {
+      digitalWrite(RELAY_PIN, RELAY_ON);
+      digitalWrite(LED_PIN, HIGH);
+      digitalWrite(ONBOARD_LED_PIN, HIGH);
+    }
+    else
+    {
+      digitalWrite(RELAY_PIN, RELAY_OFF);
+      digitalWrite(LED_PIN, LOW);
+      digitalWrite(ONBOARD_LED_PIN, LOW);
+    }
+  }
 }

@@ -46,7 +46,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const filterSelect = document.getElementById('camera-filter');
   if (filterSelect) {
-    filterSelect.addEventListener('change', handleSearchAndFilter);
+    const urlParams = new URLSearchParams(window.location.search);
+    const filterVal = urlParams.get('filter');
+    if (filterVal) filterSelect.value = filterVal;
+
+    filterSelect.addEventListener('change', (e) => {
+      const url = new URL(window.location);
+      if (e.target.value === 'all') {
+        url.searchParams.delete('filter');
+      } else {
+        url.searchParams.set('filter', e.target.value);
+      }
+      window.history.replaceState(window.history.state, '', url);
+      handleSearchAndFilter();
+    });
   }
 
   // Set up Modal Close Listener
@@ -141,14 +154,45 @@ function updateLiveStatusUI(data) {
 // 2. DETECTION HISTORY DATASET LOG
 // ==========================================
 function loadHistoryData() {
-  fetch('/api/detections')
+  console.log("[DETECTION] Loading detection history from Supabase...");
+  
+  // Build query parameters
+  const params = new URLSearchParams({
+    limit: 50
+  });
+  
+  // Get current filter value
+  const filterSelect = document.getElementById('camera-filter');
+  if (filterSelect && filterSelect.value && filterSelect.value !== 'all') {
+    params.append('detection_type', filterSelect.value);
+  }
+  
+  fetch(`/api/supabase/detections?${params}`)
     .then(res => {
-      if (!res.ok) throw new Error('Detections API unavailable');
+      if (!res.ok) throw new Error('Supabase detections API unavailable');
       return res.json();
     })
     .then(data => {
+      if (data.error) {
+        console.error("[DETECTION] Error loading detections:", data.error);
+        const tbody = document.getElementById('history-table-body');
+        if (tbody) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="6" style="text-align: center; color: var(--status-danger); padding: 2rem;">
+                <i class="fa-solid fa-triangle-exclamation" style="font-size: 1.5rem; margin-bottom: 0.5rem;"></i>
+                <p style="font-weight:600;">Unable to load detection history</p>
+                <p style="font-size: 0.75rem;">${data.error}</p>
+              </td>
+            </tr>
+          `;
+        }
+        return;
+      }
+      
       historyData = data;
       filteredData = [...historyData];
+      console.log(`[DETECTION] Loaded ${historyData.length} detection records from Supabase`);
       renderHistoryTable();
     })
     .catch(err => {
@@ -160,7 +204,7 @@ function loadHistoryData() {
             <td colspan="6" style="text-align: center; color: var(--status-danger); padding: 2rem;">
               <i class="fa-solid fa-triangle-exclamation" style="font-size: 1.5rem; margin-bottom: 0.5rem;"></i>
               <p style="font-weight:600;">Detection History Log Unavailable</p>
-              <p style="font-size: 0.75rem;">Make sure python camera detector has created the CSV log dataset.</p>
+              <p style="font-size: 0.75rem;">${err.message}</p>
             </td>
           </tr>
         `;
@@ -219,34 +263,14 @@ function renderHistoryTable() {
     const badgeClass = isAlert ? 'badge-det yes' : 'badge-det no';
     const badgeText = isAlert ? '🐘 DETECTED' : 'SAFE';
     
-    // Image handling - match by timestamp since CSV doesn't store image filenames
     let imageCellHtml = '<span class="no-image-text">—</span>';
-    if (isAlert) {
-      // Try to find matching image from gallery based on timestamp
-      const rowTimestamp = row.timestamp || (row.date + 'T' + row.time);
-      const matchingImage = galleryImages.find(img => {
-        const pattern = /elephant_(\d{8})_(\d{6})/;
-        const match = img.match(pattern);
-        if (match) {
-          const imgDate = `${match[1].substring(0, 4)}-${match[1].substring(4, 6)}-${match[1].substring(6, 8)}`;
-          const imgTime = `${match[2].substring(0, 2)}:${match[2].substring(2, 4)}:${match[2].substring(4, 6)}`;
-          const imgTimestamp = `${imgDate}T${imgTime}`;
-          // Match within 2 seconds (allow for slight timing differences)
-          const rowTime = new Date(rowTimestamp).getTime();
-          const imgTimeMs = new Date(imgTimestamp).getTime();
-          return Math.abs(rowTime - imgTimeMs) < 2000;
-        }
-        return false;
-      });
-      
-      if (matchingImage) {
-        const imageUrl = `/api/detection-images/${matchingImage}`;
-        imageCellHtml = `
-          <button class="btn-thumbnail" onclick="openImageModal('${imageUrl}', 'Detection: ${matchingImage}')" title="View Full Bounding Box Image">
-            <img src="${imageUrl}" class="table-thumb" alt="Thumb" onerror="this.outerHTML='<span class=\'no-image-text\'>Missing</span>'">
-          </button>
-        `;
-      }
+    if (isAlert && row.image_path && row.image_path.trim() !== '') {
+      const imageUrl = `/api/supabase/storage/image?image_path=${encodeURIComponent(row.image_path)}`;
+      imageCellHtml = `
+        <button class="btn-thumbnail" onclick="openImageModal('${imageUrl}', 'Detection at ${row.time}')" title="View Full Bounding Box Image">
+          <img src="${imageUrl}" class="table-thumb" alt="Thumb" onerror="this.outerHTML='<span class=\'no-image-text\'>Missing</span>'">
+        </button>
+      `;
     }
 
     tbody.innerHTML += `
@@ -366,13 +390,50 @@ function handleSearchAndFilter() {
 // 3. DETECTED ELEPHANT IMAGES GALLERY
 // ==========================================
 function loadGalleryImages() {
-  fetch('/api/detection-images')
+  console.log("[GALLERY] Loading elephant images from Supabase...");
+  
+  // Query for elephant detections with images
+  const params = new URLSearchParams({
+    detection_type: 'ELEPHANT_DETECTED',
+    limit: 20
+  });
+  
+  fetch(`/api/supabase/detections?${params}`)
     .then(res => {
-      if (!res.ok) throw new Error('Gallery API unavailable');
+      if (!res.ok) throw new Error('Supabase gallery API unavailable');
       return res.json();
     })
-    .then(images => {
-      galleryImages = images;
+    .then(detections => {
+      if (detections.error) {
+        console.error("[GALLERY] Error loading gallery:", detections.error);
+        const container = document.getElementById('gallery-grid-container');
+        if (container) {
+          container.innerHTML = `
+            <div class="gallery-placeholder">
+              <i class="fa-solid fa-triangle-exclamation" style="font-size: 2rem; color: var(--status-danger);"></i>
+              <p style="font-weight: 600;">Unable to load elephant images</p>
+              <p style="font-size: 0.75rem;">${detections.error}</p>
+            </div>
+          `;
+        }
+        return;
+      }
+      
+      // Filter for detections with image paths
+      const detectionsWithImages = detections.filter(d => d.image_path && d.image_path.trim() !== '');
+      
+      console.log(`[GALLERY] Found ${detectionsWithImages.length} elephant detections with images`);
+      
+      // Convert to gallery format with signed URLs
+      galleryImages = detectionsWithImages.map(detection => ({
+        filename: detection.image_path.split('/').pop() || 'unknown.jpg',
+        timestamp: detection.timestamp,
+        elephant_count: detection.elephant_count,
+        confidence: detection.confidence,
+        image_path: detection.image_path,
+        detection_id: detection.id
+      }));
+      
       renderImageGallery();
     })
     .catch(err => {
@@ -382,8 +443,8 @@ function loadGalleryImages() {
         container.innerHTML = `
           <div class="gallery-placeholder">
             <i class="fa-solid fa-triangle-exclamation" style="font-size: 2rem; color: var(--status-danger);"></i>
-            <p style="font-weight: 600;">Elephant Image Folder Unavailable</p>
-            <p style="font-size: 0.75rem;">Make sure the python detector is running and has generated the 'detected_elephants' folder.</p>
+            <p style="font-weight: 600;">Elephant Image Gallery Unavailable</p>
+            <p style="font-size: 0.75rem;">${err.message}</p>
           </div>
         `;
       }
@@ -406,65 +467,57 @@ function renderImageGallery() {
   }
 
   container.innerHTML = '';
-  galleryImages.forEach(filename => {
-    // Parse Date and Time from filename: elephant_YYYYMMDD_HHMMSS.jpg
-    let timestampStr = "Unknown Date/Time";
-    const pattern = /elephant_(\d{8})_(\d{6})/;
-    const match = filename.match(pattern);
-    
-    if (match) {
-      const d = match[1]; // YYYYMMDD
-      const t = match[2]; // HHMMSS
-      const year = d.substring(0, 4);
-      const month = d.substring(4, 6);
-      const day = d.substring(6, 8);
-      const hour = t.substring(0, 2);
-      const minute = t.substring(2, 4);
-      const second = t.substring(4, 6);
-      timestampStr = `${year}-${month}-${day} ${hour}:${minute}:${second}`;
-    }
-
-    // Try to find matching metadata from historyData to show confidence & counts
-    let confText = "";
-    let countText = "";
-    const historyMatch = historyData.find(row => row.saved_image === filename);
-    if (historyMatch) {
-      confText = `${historyMatch.confidence.toFixed(1)}%`;
-      countText = `${historyMatch.elephant_count} Elephant${historyMatch.elephant_count > 1 ? 's' : ''}`;
-    } else {
-      // Guess from history mapping or filename
-      confText = "Real Value";
-      countText = "Elephant Detected";
-    }
-
-    const imageUrl = `/api/detection-images/${filename}`;
-    
-    container.innerHTML += `
-      <div class="gallery-card">
-        <div class="gallery-image-wrapper" onclick="openImageModal('${imageUrl}', 'Captured: ${filename}')">
-          <img src="${imageUrl}" class="gallery-image" alt="Captured Elephant" loading="lazy">
+  
+  // Process each image
+  galleryImages.forEach(async (imageData) => {
+    try {
+      // Get signed URL for this image
+      const signedUrlResponse = await fetch(`/api/supabase/storage/signed-url?image_path=${encodeURIComponent(imageData.image_path)}`);
+      const signedUrlData = await signedUrlResponse.json();
+      
+      if (signedUrlData.error) {
+        console.error("[GALLERY] Error getting signed URL:", signedUrlData.error);
+        return;
+      }
+      
+      const imageUrl = signedUrlData.signed_url;
+      
+      // Format timestamp
+      let timestampStr = "Unknown Date/Time";
+      if (imageData.timestamp) {
+        try {
+          const dt = new Date(imageData.timestamp);
+          timestampStr = dt.toLocaleString();
+        } catch {
+          timestampStr = imageData.timestamp;
+        }
+      }
+      
+      // Create image card
+      const card = document.createElement('div');
+      card.className = 'gallery-card';
+      card.innerHTML = `
+        <div class="gallery-image-wrapper">
+          <img src="${imageUrl}" alt="Elephant Detection" class="gallery-image" onclick="openImageModal('${imageUrl}', '${imageData.filename}')">
+          <div class="gallery-overlay">
+            <span><i class="fa-solid fa-camera"></i> 🐘 Elephant Detected</span>
+            <span><i class="fa-solid fa-clock"></i> ${timestampStr}</span>
+          </div>
         </div>
-        <div class="gallery-info">
-          <div class="gallery-filename" title="${filename}">${filename}</div>
+        <div class="gallery-card-content">
+          <div class="gallery-filename">${imageData.filename}</div>
           <div class="gallery-meta">
-            <div class="gallery-meta-item">
-              <i class="fa-solid fa-clock"></i>
-              <span>${timestampStr}</span>
-            </div>
-          </div>
-          <div class="gallery-meta" style="margin-top: 0.2rem;">
-            <div class="gallery-meta-item" style="color: var(--status-danger); font-weight:600;">
-              <i class="fa-solid fa-warning"></i>
-              <span>${countText}</span>
-            </div>
-            <div class="gallery-meta-item" style="color: var(--accent-cyan); font-weight:600;">
-              <i class="fa-solid fa-bullseye"></i>
-              <span>Conf: ${confText}</span>
-            </div>
+            <span><i class="fa-solid fa-users"></i> ${imageData.elephant_count} Elephant${imageData.elephant_count > 1 ? 's' : ''}</span>
+            <span><i class="fa-solid fa-bullseye"></i> ${imageData.confidence.toFixed(1)}%</span>
           </div>
         </div>
-      </div>
-    `;
+      `;
+      
+      container.appendChild(card);
+      
+    } catch (error) {
+      console.error("[GALLERY] Error rendering image:", error);
+    }
   });
 }
 

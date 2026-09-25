@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>403 Forbidden | Elephant Early Warning System</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/landing_and_auth.css">
+    <style>
+        body {
+            background-color: #080d1a;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(239, 68, 68, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.1) 0px, transparent 50%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            color: #f1f5f9;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .forbidden-card {
+            background: rgba(17, 24, 39, 0.85);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-radius: 20px;
+            max-width: 540px;
+            width: 100%;
+            padding: 40px 32px;
+            text-align: center;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 30px rgba(239, 68, 68, 0.15);
+        }
+
+        .forbidden-icon-wrap {
+            width: 88px;
+            height: 88px;
+            border-radius: 50%;
+            background: rgba(239, 68, 68, 0.12);
+            border: 2px solid rgba(239, 68, 68, 0.35);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px;
+            color: #ef4444;
+            font-size: 2.2rem;
+            animation: pulse-ring 2.5s infinite;
+        }
+
+        @keyframes pulse-ring {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+            70% { box-shadow: 0 0 0 16px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+
+        .badge-403 {
+            display: inline-block;
+            background: rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            margin-bottom: 12px;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.85rem;
+            font-weight: 700;
+            margin: 0 0 12px 0;
+            color: #fff;
+        }
+
+        p.description {
+            font-size: 0.95rem;
+            color: #94a3b8;
+            line-height: 1.6;
+            margin-bottom: 28px;
+        }
+
+        .role-notice {
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 14px 16px;
+            text-align: left;
+            margin-bottom: 28px;
+            font-size: 0.85rem;
+            color: #cbd5e1;
+        }
+
+        .role-notice strong {
+            color: #f87171;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        .btn-primary {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            font-weight: 600;
+            font-size: 0.9rem;
+            padding: 12px 24px;
+            border-radius: 10px;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px -5px rgba(16, 185, 129, 0.4);
+            color: white;
+        }
+
+        .btn-secondary {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.06);
+            color: #cbd5e1;
+            font-weight: 600;
+            font-size: 0.9rem;
+            padding: 12px 20px;
+            border-radius: 10px;
+            text-decoration: none;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            transition: all 0.2s ease;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <div class="forbidden-card">
+        <div class="forbidden-icon-wrap">
+            <i class="fa-solid fa-shield-halved"></i>
+        </div>
+        <div class="badge-403">HTTP 403 Forbidden</div>
+        <h1>Access Restricted</h1>
+        <p class="description">
+            You do not have permission to view or manage user accounts. User Management and administration controls are strictly limited to authenticated <strong>Forest Officers</strong>.
+        </p>
+
+        <div class="role-notice">
+            <strong><i class="fa-solid fa-lock"></i> Security Enforcement Notice</strong>
+            Row Level Security (RLS) and server-side RBAC prevent Villagers, Police personnel, and unauthenticated sessions from accessing administrator endpoints and directories.
+        </div>
+
+        <div class="btn-group">
+            <a href="/" class="btn-primary">
+                <i class="fa-solid fa-house"></i> Return to Safe Dashboard
+            </a>
+            <a href="/logout" class="btn-secondary">
+                <i class="fa-solid fa-right-from-bracket"></i> Sign Out
+            </a>
+        </div>
+    </div>
+</body>
+</html>

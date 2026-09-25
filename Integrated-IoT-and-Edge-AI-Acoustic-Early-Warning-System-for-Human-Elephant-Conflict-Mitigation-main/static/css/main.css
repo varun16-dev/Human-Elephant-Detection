@@ -441,6 +441,12 @@ body {
   box-shadow: 0 0 15px rgba(239, 68, 68, 0.2);
 }
 
+.node-card.status-offline {
+  border-color: rgba(148, 163, 184, 0.25);
+  background: rgba(15, 23, 42, 0.55);
+  opacity: 0.88;
+}
+
 .node-header {
   display: flex;
   justify-content: space-between;
@@ -466,6 +472,7 @@ body {
 
 .node-badge.safe { background: rgba(16, 185, 129, 0.2); color: var(--status-safe); }
 .node-badge.alert { background: rgba(239, 68, 68, 0.25); color: var(--status-danger); }
+.node-badge.offline { background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.3); }
 
 .telemetry-metrics {
   display: grid;
@@ -787,6 +794,100 @@ body {
 
 input:checked + .slider {
   background-color: var(--status-danger);
+}
+
+/* Pulsing animation for active switch slider */
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
+
+/* ==========================================================================
+   Strobe Light Blinking Animation (250ms ON / 250ms OFF = 0.5s Strobe Cycle)
+   ========================================================================== */
+@keyframes strobeBulbFlash {
+  0%, 49% {
+    color: #ffffff;
+    text-shadow: 0 0 8px #ffffff, 0 0 18px #fde047, 0 0 32px #f59e0b, 0 0 50px #ef4444;
+    transform: scale(1.2);
+  }
+  50%, 100% {
+    color: #475569;
+    text-shadow: none;
+    transform: scale(1.0);
+  }
+}
+
+@keyframes strobeHaloFlash {
+  0%, 49% {
+    background: radial-gradient(circle, #ffffff 15%, #f59e0b 60%, #dc2626 100%);
+    box-shadow: 0 0 25px rgba(245, 158, 11, 0.95), 0 0 50px rgba(239, 68, 68, 0.75), inset 0 0 12px #ffffff;
+    transform: scale(1.12);
+  }
+  50%, 100% {
+    background: rgba(255, 255, 255, 0.04);
+    box-shadow: none;
+    transform: scale(1.0);
+  }
+}
+
+@keyframes strobeCardPulse {
+  0%, 49% {
+    border-color: rgba(245, 158, 11, 0.85);
+    box-shadow: 0 0 25px rgba(245, 158, 11, 0.35);
+  }
+  50%, 100% {
+    border-color: var(--border-color);
+    box-shadow: none;
+  }
+}
+
+.strobe-active .slider,
+#card-strobe.active .slider {
+  animation: pulse 1.5s infinite;
+}
+
+/* Strobe Active State (Switch ON) */
+#card-strobe.strobe-active,
+#card-strobe.active {
+  animation: strobeCardPulse 0.5s infinite steps(1, end);
+}
+
+#card-strobe.strobe-active .deterrent-icon,
+#card-strobe.active .deterrent-icon {
+  animation: strobeHaloFlash 0.5s infinite steps(1, end) !important;
+}
+
+#card-strobe.strobe-active .deterrent-icon i,
+#card-strobe.active .deterrent-icon i {
+  display: inline-block;
+  animation: strobeBulbFlash 0.5s infinite steps(1, end) !important;
+}
+
+/* Strobe Inactive / Standby State (Switch OFF) */
+#card-strobe:not(.strobe-active):not(.active) {
+  animation: none;
+}
+
+#card-strobe:not(.strobe-active):not(.active) .deterrent-icon {
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: none;
+  animation: none;
+  transform: none;
+}
+
+#card-strobe:not(.strobe-active):not(.active) .deterrent-icon i {
+  color: #475569;
+  text-shadow: none;
+  animation: none;
+  transform: none;
 }
 
 input:checked + .slider:before {

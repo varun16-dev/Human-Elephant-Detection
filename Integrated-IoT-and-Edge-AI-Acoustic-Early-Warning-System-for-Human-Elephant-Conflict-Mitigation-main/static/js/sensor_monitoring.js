@@ -1,5 +1,70 @@
 // Sensor Monitoring Module - Exact Reference Design Implementation
 
+let selectedMonitoringNode = 'ESP32-NODE-01';
+const smUrlParams = new URLSearchParams(window.location.search);
+if (smUrlParams.has('device')) {
+    selectedMonitoringNode = smUrlParams.get('device');
+}
+
+window.switchMonitoringNode = function(nodeId) {
+    if (selectedMonitoringNode === nodeId) return;
+    selectedMonitoringNode = nodeId;
+    console.log(`[MONITORING] Switched target node to: ${nodeId}`);
+    
+    // Update URL parameter
+    const url = new URL(window.location);
+    url.searchParams.set('device', nodeId);
+    window.history.replaceState(window.history.state, '', url);
+    
+    // Update button states
+    const btn1 = document.getElementById('mon-btn-node-1');
+    const btn2 = document.getElementById('mon-btn-node-2');
+    const badge = document.getElementById('selected-node-indicator');
+    const testBtn = document.getElementById('node-test-transmit-btn');
+    
+    if (nodeId === 'ESP32-NODE-01') {
+        if (btn1) {
+            btn1.style.background = 'rgba(16, 185, 129, 0.2)';
+            btn1.style.borderColor = '#10b981';
+            btn1.style.color = '#10b981';
+        }
+        if (btn2) {
+            btn2.style.background = 'rgba(148, 163, 184, 0.08)';
+            btn2.style.borderColor = 'rgba(148, 163, 184, 0.25)';
+            btn2.style.color = '#94a3b8';
+        }
+        if (badge) {
+            badge.innerHTML = '<i class="fa-solid fa-satellite-dish"></i> ESP32-NODE-01 (Buthanahalli)';
+            badge.style.color = '#10b981';
+            badge.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+            badge.style.background = 'rgba(16, 185, 129, 0.15)';
+        }
+        if (testBtn) testBtn.style.display = 'none';
+    } else {
+        if (btn2) {
+            btn2.style.background = 'rgba(56, 189, 248, 0.2)';
+            btn2.style.borderColor = '#38bdf8';
+            btn2.style.color = '#38bdf8';
+        }
+        if (btn1) {
+            btn1.style.background = 'rgba(148, 163, 184, 0.08)';
+            btn1.style.borderColor = 'rgba(148, 163, 184, 0.25)';
+            btn1.style.color = '#94a3b8';
+        }
+        if (badge) {
+            badge.innerHTML = '<i class="fa-solid fa-satellite-dish"></i> ESP32-NODE-02 (Begihalli)';
+            badge.style.color = '#38bdf8';
+            badge.style.borderColor = 'rgba(56, 189, 248, 0.3)';
+            badge.style.background = 'rgba(56, 189, 248, 0.15)';
+        }
+        if (testBtn) testBtn.style.display = 'inline-flex';
+    }
+    
+    updateSensorStatus();
+    loadChartData();
+    loadRawData();
+};
+
 let sensorChart = null;
 let currentSensorType = 'pir';
 let updateInterval = null;
@@ -14,6 +79,172 @@ let rawDataPerPage = 20;
 let rawDataFiltered = [];
 let rawDataDateFilter = null;
 
+let lastSuspiciousAlertTime = 0;
+
+function triggerSuspiciousPopup(pirVal, soundVal) {
+    const now = Date.now();
+    if (now - lastSuspiciousAlertTime < 15000) return; // 15s cooldown
+    lastSuspiciousAlertTime = now;
+    
+    if (document.getElementById('suspicious-activity-popup')) {
+        document.getElementById('suspicious-activity-popup').remove();
+    }
+    
+    const popup = document.createElement('div');
+    popup.id = 'suspicious-activity-popup';
+    popup.style.position = 'fixed';
+    popup.style.top = '25px';
+    popup.style.right = '25px';
+    popup.style.background = 'rgba(239, 68, 68, 0.92)';
+    popup.style.color = '#fff';
+    popup.style.padding = '1.2rem 1.5rem';
+    popup.style.borderRadius = '10px';
+    popup.style.boxShadow = '0 15px 30px rgba(239, 68, 68, 0.35)';
+    popup.style.zIndex = '999999';
+    popup.style.display = 'flex';
+    popup.style.alignItems = 'center';
+    popup.style.gap = '1.2rem';
+    popup.style.border = '1px solid #fca5a5';
+    popup.style.backdropFilter = 'blur(10px)';
+    popup.style.transition = 'all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+    popup.style.transform = 'translateY(-30px)';
+    popup.style.opacity = '0';
+    
+    const pVal = typeof pirVal === 'number' ? pirVal.toFixed(2) : 'DETECTED';
+    const sVal = typeof soundVal === 'number' ? soundVal.toFixed(1) + ' dB' : 'DETECTED';
+    
+    popup.innerHTML = `
+        <div style="font-size: 2.2rem; color: #fff;">
+            <i class="fa-solid fa-triangle-exclamation fa-beat"></i>
+        </div>
+        <div>
+            <h4 style="margin: 0 0 0.3rem 0; font-family: var(--font-title); font-size: 1.15rem; text-transform: uppercase; letter-spacing: 0.5px;">Suspicious Activity Detected</h4>
+            <p style="margin: 0; font-size: 0.88rem; opacity: 0.95;">Both sensors triggered simultaneously.</p>
+            <div style="display: flex; gap: 0.6rem; margin-top: 0.7rem;">
+                <span style="background: rgba(0,0,0,0.25); padding: 0.25rem 0.6rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; display: inline-flex; align-items: center; gap: 0.3rem;"><i class="fa-solid fa-person-walking"></i> PIR: ${pVal}</span>
+                <span style="background: rgba(0,0,0,0.25); padding: 0.25rem 0.6rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; display: inline-flex; align-items: center; gap: 0.3rem;"><i class="fa-solid fa-volume-high"></i> SOUND: ${sVal}</span>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(popup);
+    
+    // Animate in
+    setTimeout(() => {
+        popup.style.transform = 'translateY(0)';
+        popup.style.opacity = '1';
+    }, 10);
+    
+    // Auto-remove after 7 seconds
+    setTimeout(() => {
+        popup.style.opacity = '0';
+        popup.style.transform = 'translateY(-30px)';
+        setTimeout(() => popup.remove(), 500);
+    }, 7000);
+}
+
+// Supabase Client & Realtime Subscription
+let supabaseClient = null;
+let rawSensorChannel = null;
+
+async function getSupabaseClient() {
+    if (supabaseClient) return supabaseClient;
+    let config = window.SUPABASE_CONFIG || {};
+    if (!config.url || !config.anonKey) {
+        try {
+            const resp = await fetch('/api/config/supabase');
+            if (resp.ok) {
+                const confData = await resp.json();
+                config = { url: confData.url, anonKey: confData.anon_key };
+                window.SUPABASE_CONFIG = config;
+            }
+        } catch (e) {
+            console.warn('[SUPABASE] Could not fetch config from API:', e);
+        }
+    }
+    
+    if (config.url && config.anonKey && window.supabase && window.supabase.createClient) {
+        try {
+            supabaseClient = window.supabase.createClient(config.url, config.anonKey);
+            console.log('[SUPABASE] Realtime client initialized successfully');
+        } catch (e) {
+            console.error('[SUPABASE] Error initializing Supabase client:', e);
+        }
+    }
+    return supabaseClient;
+}
+
+async function initSupabaseRealtime() {
+    const client = await getSupabaseClient();
+    if (!client) {
+        console.warn('[SUPABASE] Realtime client not ready yet');
+        return;
+    }
+    
+    if (rawSensorChannel) {
+        return; // Already subscribed
+    }
+
+    try {
+        rawSensorChannel = client
+            .channel('realtime:raw_sensor_data')
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'raw_sensor_data'
+                },
+                (payload) => {
+                    console.log('[SUPABASE REALTIME] New raw_sensor_data row:', payload.new);
+                    const record = payload.new;
+                    if (record.device_id && record.device_id !== selectedMonitoringNode) {
+                        return; // Ignore updates for non-selected node
+                    }
+                    const pir_bool = Boolean(record.pir_detected);
+                    const sound_bool = Boolean(record.sound_detected);
+                    
+                    const transformed = {
+                        id: record.id,
+                        timestamp: record.timestamp,
+                        pir: pir_bool ? 'DETECTED' : 'SAFE',
+                        pir_val: pir_bool ? 1.0 : 0.0,
+                        sound: sound_bool ? 'DETECTED' : 'SAFE',
+                        sound_val: parseFloat(record.sound_level || (sound_bool ? 85.0 : 35.0)),
+                        sound_level: record.sound_level,
+                        latitude: record.latitude,
+                        longitude: record.longitude,
+                        device_id: record.device_id
+                    };
+
+                    if (pir_bool && sound_bool) {
+                        triggerSuspiciousPopup(transformed.pir_val, transformed.sound_val);
+                    }
+
+                    // Check if date filter applies
+                    if (rawDataDateFilter) {
+                        const recDate = new Date(transformed.timestamp).toLocaleDateString('en-CA');
+                        if (recDate !== rawDataDateFilter) {
+                            return;
+                        }
+                    }
+
+                    // Check for duplicate
+                    const exists = rawDataFiltered.some(r => r.id && r.id === transformed.id);
+                    if (!exists) {
+                        rawDataFiltered.unshift(transformed);
+                        renderRawDataTable();
+                    }
+                }
+            )
+            .subscribe((status) => {
+                console.log('[SUPABASE REALTIME] raw_sensor_data channel status:', status);
+            });
+    } catch (err) {
+        console.error('[SUPABASE REALTIME] Setup failed:', err);
+    }
+}
+
 // Initialize sensor monitoring
 function initSensorMonitoring() {
     console.log("[ESP32] Initializing Sensor Monitoring...");
@@ -24,6 +255,9 @@ function initSensorMonitoring() {
     // Set initial device status to offline until we get real data
     updateDeviceStatusHeader(false);
     updateLastUpdateTime(null);
+    
+    // Connect to Supabase Realtime
+    initSupabaseRealtime();
     
     // Load current sensor data (this will check connection and update status)
     updateSensorStatus();
@@ -44,8 +278,8 @@ function initSensorMonitoring() {
 // Update sensor status cards
 async function updateSensorStatus() {
     try {
-        console.log("[ESP32] Fetching current sensor data...");
-        const response = await fetch('/api/sensor/current');
+        console.log(`[ESP32] Fetching current sensor data for ${selectedMonitoringNode}...`);
+        const response = await fetch(`/api/sensor/current?node_id=${selectedMonitoringNode}`);
         const data = await response.json();
         
         if (data.error) {
@@ -139,6 +373,11 @@ async function updateSensorStatus() {
             soundStatusTag.classList.remove('alert');
         }
         
+        // Trigger Suspicious Activity Popup if both are ALERT
+        if (data.pir_status === 'ALERT' && data.sound_status === 'ALERT') {
+            triggerSuspiciousPopup(data.pir, data.sound);
+        }
+        
     } catch (error) {
         console.error('[ESP32] Error updating sensor status:', error);
         esp32Online = false;
@@ -149,6 +388,7 @@ async function updateSensorStatus() {
 
 // Display offline state for sensor cards
 function displayOfflineState() {
+    const nodeLabel = selectedMonitoringNode === 'ESP32-NODE-01' ? 'Node 1' : 'Node 2';
     // PIR card offline state
     document.getElementById('pir-current-value').textContent = '—';
     
@@ -161,7 +401,7 @@ function displayOfflineState() {
     pirStatusDot.classList.remove('alert');
     pirStatusDot.classList.remove('normal');
     pirStatusDot.classList.add('offline');
-    pirStatusText.textContent = 'ESP32 Offline';
+    pirStatusText.textContent = `${nodeLabel} Offline`;
     pirStatusTag.textContent = 'Offline';
     pirStatusTag.classList.remove('alert');
     pirStatusTag.classList.remove('normal');
@@ -179,7 +419,7 @@ function displayOfflineState() {
     soundStatusDot.classList.remove('alert');
     soundStatusDot.classList.remove('normal');
     soundStatusDot.classList.add('offline');
-    soundStatusText.textContent = 'ESP32 Offline';
+    soundStatusText.textContent = `${nodeLabel} Offline`;
     soundStatusTag.textContent = 'Offline';
     soundStatusTag.classList.remove('alert');
     soundStatusTag.classList.remove('normal');
@@ -190,15 +430,16 @@ function displayOfflineState() {
 function updateESP32Status(online) {
     const statusElement = document.getElementById('esp32-status');
     const statusText = document.getElementById('esp32-status-text');
+    const nodeLabel = selectedMonitoringNode === 'ESP32-NODE-01' ? 'ESP32 (Node 1)' : 'ESP32 (Node 2)';
     
     if (online) {
         statusElement.classList.remove('offline');
         statusElement.classList.add('online');
-        statusText.textContent = 'ESP32: ONLINE';
+        statusText.textContent = `${nodeLabel}: ONLINE`;
     } else {
         statusElement.classList.remove('online');
         statusElement.classList.add('offline');
-        statusText.textContent = 'ESP32: OFFLINE';
+        statusText.textContent = `${nodeLabel}: OFFLINE`;
     }
     
     // Update device status header
@@ -210,13 +451,14 @@ function updateDeviceStatusHeader(online) {
     const deviceStatusPill = document.getElementById('device-status-pill');
     const deviceStatusDot = document.getElementById('device-status-dot');
     const deviceStatusText = document.getElementById('device-status-text');
+    const nodeLabel = selectedMonitoringNode === 'ESP32-NODE-01' ? 'Node 1' : 'Node 2';
     
     if (online) {
         deviceStatusPill.classList.remove('offline');
-        deviceStatusText.textContent = 'Device: Online';
+        deviceStatusText.textContent = `${nodeLabel}: Online`;
     } else {
         deviceStatusPill.classList.add('offline');
-        deviceStatusText.textContent = 'Device: Offline';
+        deviceStatusText.textContent = `${nodeLabel}: Offline`;
     }
 }
 
@@ -298,8 +540,8 @@ function manualRefresh() {
 // Check ESP32 connection status using the dedicated API
 async function checkESP32Connection() {
     try {
-        console.log("[ESP32] Checking connection status...");
-        const response = await fetch('/api/esp32/status');
+        console.log(`[ESP32] Checking connection status for ${selectedMonitoringNode}...`);
+        const response = await fetch(`/api/esp32/status?node_id=${selectedMonitoringNode}`);
         const data = await response.json();
         
         console.log("[ESP32] Connection status response:", data);
@@ -341,14 +583,10 @@ function startSensorUpdates() {
         updateInterval = setInterval(() => {
             console.log("[ESP32] Standalone auto-refresh cycle starting...");
             updateSensorStatus();
-            // Auto-update chart and raw data if ESP32 is online
-            if (esp32Online) {
-                loadChartData();
-                loadRawData();
-            } else {
-                // If ESP32 is offline, show offline message on chart
-                showChartOfflineState();
-            }
+            // Auto-update chart and raw data regardless of live ESP32 status
+            // so historical data is always visible.
+            loadChartData();
+            loadRawData();
         }, AUTO_REFRESH_INTERVAL);
     } else {
         console.log("[ESP32] Auto-refresh is disabled, not starting interval");
@@ -369,10 +607,8 @@ function hookIntoExistingPolling() {
                 document.getElementById('sensor-monitoring-tab').classList.contains('active')) {
                 console.log("[ESP32] Hooked into existing polling - updating sensor monitoring");
                 updateSensorStatus();
-                if (esp32Online) {
-                    loadChartData();
-                    loadRawData();
-                }
+                loadChartData();
+                loadRawData();
             }
             
             return result;
@@ -386,30 +622,41 @@ function hookIntoExistingPolling() {
 // Raw Data Functions
 async function loadRawData() {
     try {
-        console.log("[ESP32] Loading raw data...");
-        const response = await fetch('/api/sensor/history');
+        console.log(`[ESP32] Loading raw data from Supabase for ${selectedMonitoringNode}...`);
+        
+        // Build query parameters
+        const params = new URLSearchParams({
+            limit: 50,
+            device_id: selectedMonitoringNode
+        });
+        
+        if (rawDataDateFilter) {
+            params.append('from_date', rawDataDateFilter);
+            params.append('to_date', rawDataDateFilter);
+        }
+        
+        const response = await fetch(`/api/supabase/raw-sensor-data?${params}`);
         const data = await response.json();
         
         if (data.error) {
             console.error('[ESP32] Error loading raw data:', data.error);
+            const tableBody = document.getElementById('raw-data-table-body');
+            if (tableBody) {
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="3" style="text-align: center; padding: 2rem; color: var(--status-danger);">
+                            <i class="fa-solid fa-triangle-exclamation" style="font-size: 1.5rem; margin-bottom: 0.5rem;"></i>
+                            <p style="font-weight:600;">Unable to load ESP32 records</p>
+                            <p style="font-size: 0.75rem;">${data.error}</p>
+                        </td>
+                    </tr>
+                `;
+            }
             return;
         }
         
-        // Apply date filter if set
-        if (rawDataDateFilter) {
-            const filterDate = new Date(rawDataDateFilter);
-            rawDataFiltered = data.filter(record => {
-                const recordDate = new Date(record.timestamp);
-                return recordDate.toDateString() === filterDate.toDateString();
-            });
-            console.log(`[ESP32] Applied date filter: ${rawDataDateFilter}, records: ${rawDataFiltered.length}`);
-        } else {
-            rawDataFiltered = data;
-            console.log(`[ESP32] Loaded ${rawDataFiltered.length} raw data records`);
-        }
-        
-        // Sort by timestamp descending (newest first)
-        rawDataFiltered.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        rawDataFiltered = data;
+        console.log(`[ESP32] Loaded ${rawDataFiltered.length} raw data records from Supabase`);
         
         // Reset to first page
         rawDataCurrentPage = 1;
@@ -419,6 +666,18 @@ async function loadRawData() {
         
     } catch (error) {
         console.error('[ESP32] Error loading raw data:', error);
+        const tableBody = document.getElementById('raw-data-table-body');
+        if (tableBody) {
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="3" style="text-align: center; padding: 2rem; color: var(--status-danger);">
+                        <i class="fa-solid fa-triangle-exclamation" style="font-size: 1.5rem; margin-bottom: 0.5rem;"></i>
+                        <p style="font-weight:600;">Unable to load ESP32 records</p>
+                        <p style="font-size: 0.75rem;">${error.message}</p>
+                    </td>
+                </tr>
+            `;
+        }
     }
 }
 
@@ -430,7 +689,7 @@ function renderRawDataTable() {
             <tr>
                 <td colspan="3" style="text-align: center; padding: 2rem; color: var(--text-muted);">
                     <i class="fa-solid fa-circle-info" style="font-size: 1.5rem; margin-bottom: 0.5rem; color: var(--text-dim);"></i>
-                    <p style="font-weight: 600;">${esp32Online ? 'No data available for selected period' : 'Waiting for ESP32 data...'}</p>
+                    <p style="font-weight: 600;">No sensor data available</p>
                 </td>
             </tr>
         `;
@@ -447,17 +706,45 @@ function renderRawDataTable() {
     let html = '';
     pageData.forEach(record => {
         const date = new Date(record.timestamp);
-        const formattedDate = date.toLocaleDateString('en-US', { 
+        const formattedDate = !isNaN(date.getTime()) ? date.toLocaleDateString('en-US', { 
             month: 'short', 
             day: 'numeric', 
             year: 'numeric' 
-        });
-        const formattedTime = date.toLocaleTimeString('en-US', { 
+        }) : 'Recent';
+        const formattedTime = !isNaN(date.getTime()) ? date.toLocaleTimeString('en-US', { 
             hour: '2-digit', 
             minute: '2-digit', 
             second: '2-digit',
             hour12: false 
-        });
+        }) : '--:--:--';
+        
+        // Determine PIR status
+        let isPirAlert = false;
+        if (typeof record.pir === 'number') {
+            isPirAlert = record.pir > 0.5;
+        } else if (typeof record.pir === 'string') {
+            isPirAlert = record.pir.toUpperCase().includes('DETECT');
+        } else if (typeof record.pir === 'boolean') {
+            isPirAlert = record.pir;
+        }
+
+        // Determine Sound status
+        let isSoundAlert = false;
+        if (typeof record.sound === 'number') {
+            isSoundAlert = record.sound > 0.3;
+        } else if (typeof record.sound === 'string') {
+            isSoundAlert = record.sound.toUpperCase().includes('DETECT');
+        } else if (typeof record.sound === 'boolean') {
+            isSoundAlert = record.sound;
+        }
+
+        const pirBadge = isPirAlert 
+            ? `<span class="node-badge alert" style="font-size:0.75rem; padding: 0.2rem 0.5rem;"><i class="fa-solid fa-person-walking"></i> DETECTED</span>`
+            : `<span class="node-badge safe" style="font-size:0.75rem; padding: 0.2rem 0.5rem;"><i class="fa-solid fa-shield-check"></i> SAFE</span>`;
+
+        const soundBadge = isSoundAlert 
+            ? `<span class="node-badge alert" style="font-size:0.75rem; padding: 0.2rem 0.5rem;"><i class="fa-solid fa-volume-high"></i> DETECTED</span>`
+            : `<span class="node-badge safe" style="font-size:0.75rem; padding: 0.2rem 0.5rem;"><i class="fa-solid fa-volume-xmark"></i> SAFE</span>`;
         
         html += `
             <tr>
@@ -465,8 +752,8 @@ function renderRawDataTable() {
                     <div style="font-weight: 600;">${formattedDate}</div>
                     <div style="font-size: 0.8rem; color: var(--text-muted);">${formattedTime}</div>
                 </td>
-                <td style="font-weight: 600; color: ${record.pir > 0.5 ? '#10b981' : '#6b7280'};">${record.pir.toFixed(2)}</td>
-                <td style="font-weight: 600; color: ${record.sound > 0.3 ? '#06b6d4' : '#6b7280'};">${record.sound.toFixed(2)}</td>
+                <td>${pirBadge}</td>
+                <td>${soundBadge}</td>
             </tr>
         `;
     });
@@ -528,12 +815,14 @@ function nextRawDataPage() {
 function showChartOfflineState() {
     if (!sensorChart) return;
     
+    const nodeLabel = selectedMonitoringNode === 'ESP32-NODE-01' ? 'Node 1' : 'Node 2';
+    
     // Clear chart data and show offline message
     sensorChart.data.labels = [];
     sensorChart.data.datasets = [];
     sensorChart.options.plugins.title = {
         display: true,
-        text: 'ESP32 Offline - Waiting for sensor data...',
+        text: `No live sensor data - ${nodeLabel} is offline`,
         color: '#ef4444',
         font: {
             size: 16,
@@ -678,13 +967,14 @@ function initSensorChart() {
 // Load chart data based on current filters
 async function loadChartData() {
     try {
-        // First check ESP32 connection status
-        const statusResponse = await fetch('/api/esp32/status');
+        const statusResponse = await fetch(`/api/esp32/status?node_id=${selectedMonitoringNode}`);
         const statusData = await statusResponse.json();
         
         if (!statusData.connected) {
             esp32Online = false;
             updateESP32Status(false);
+            // Node is OFFLINE - show empty state, do NOT load historical data
+            console.log(`[CHART] Node ${selectedMonitoringNode} is offline - showing empty state`);
             showChartOfflineState();
             return;
         }
@@ -694,7 +984,7 @@ async function loadChartData() {
         const fromDate = document.getElementById('from-date').value;
         const toDate = document.getElementById('to-date').value;
         
-        let url = `/api/sensor/history?sensor=${currentSensorType}&limit=${dataPoints}&step=${stepInput}`;
+        let url = `/api/sensor/history?sensor=${currentSensorType}&limit=${dataPoints}&step=${stepInput}&node_id=${selectedMonitoringNode}`;
         
         if (fromDate) {
             url += `&from_date=${fromDate}`;
@@ -708,6 +998,7 @@ async function loadChartData() {
         
         if (result.error) {
             console.error('Error fetching sensor history:', result.error);
+            showChartOfflineState();
             return;
         }
         
@@ -885,7 +1176,7 @@ function exportSensorData() {
     const fromDate = document.getElementById('from-date').value;
     const toDate = document.getElementById('to-date').value;
     
-    let url = `/api/sensor/export?sensor=${currentSensorType}&limit=${dataPoints}&step=${stepInput}`;
+    let url = `/api/sensor/export?sensor=${currentSensorType}&limit=${dataPoints}&step=${stepInput}&node_id=${selectedMonitoringNode}`;
     
     if (fromDate) {
         url += `&from_date=${fromDate}`;
@@ -905,6 +1196,11 @@ function exportSensorData() {
 
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
+    // Force update UI for the selected node from URL if present
+    const tempNode = selectedMonitoringNode;
+    selectedMonitoringNode = null;
+    switchMonitoringNode(tempNode);
+
     // Check if sensor monitoring tab exists
     if (document.getElementById('sensor-monitoring-tab')) {
         // Initialize when tab is first opened
@@ -923,4 +1219,17 @@ document.addEventListener('DOMContentLoaded', function() {
             attributeFilter: ['class']
         });
     }
+
+    // Auto-open calendar picker when clicking anywhere on date or datetime-local inputs
+    document.addEventListener('click', function(e) {
+        if (e.target && (e.target.matches('input[type="date"]') || e.target.matches('input[type="datetime-local"]'))) {
+            try {
+                if (typeof e.target.showPicker === 'function') {
+                    e.target.showPicker();
+                }
+            } catch (err) {
+                // Ignore if browser restricts showPicker
+            }
+        }
+    });
 });

@@ -16,8 +16,7 @@ import requests
 import sys
 from datetime import datetime
 
-# Configuration
-CSV_PATH = r"c:\Users\micva\Downloads\Complete System\WelcomeScreen\fall_final\elephant_detection_dataset.csv"
+CSV_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'WelcomeScreen', 'fall_final', 'elephant_detection_dataset.csv'))
 
 API_URL = "http://127.0.0.1:5000/api/alerts/process"
 POLL_INTERVAL_SECONDS = 1

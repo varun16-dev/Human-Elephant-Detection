@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Villager Safety Dashboard | Integrated IoT & Edge-AI Early Warning System</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/role_dashboards.css') }}">
+</head>
+<body>
+
+  <!-- Top Dashboard Header -->
+  <header class="role-dashboard-header">
+    <div class="brand-section">
+      <div class="logo-badge" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
+        <i class="fa-solid fa-house-chimney-window" style="color: #000; font-size: 1.2rem;"></i>
+      </div>
+      <div class="title-group">
+        <h1 style="font-size: 1.1rem; font-family: var(--font-title); font-weight: 700; color: #fff;">
+          Villager Community Safety Portal
+        </h1>
+      </div>
+    </div>
+
+    <div class="header-user-info">
+      <span class="role-badge-tag villager">
+        <i class="fa-solid fa-shield-cat"></i> Community SafeZone
+      </span>
+      <div class="user-name-display">
+        <i class="fa-regular fa-user" style="color: #f59e0b;"></i>
+        <span>{{ user_name | default('Anand Gowda', true) }} ({{ user_zone | default('Buthanahalli Border Zone', true) }})</span>
+      </div>
+      <button class="btn-logout" onclick="handleLogout()">
+        <i class="fa-solid fa-right-from-bracket"></i> Sign Out
+      </button>
+    </div>
+  </header>
+
+  <!-- Villager Dashboard Container -->
+  <main class="villager-container">
+
+    <!-- Active Elephant Alert Banner -->
+    <div id="villager-alert-banner" class="villager-alert-banner safe">
+      <div class="alert-header-row">
+        <div class="alert-title-group">
+          <div class="alert-big-icon" id="alert-icon">
+            <i class="fa-solid fa-circle-check" style="color: #10b981;"></i>
+          </div>
+          <div>
+            <div class="alert-big-title" id="alert-title">
+              ALL CLEAR &bull; ZONE SAFE
+            </div>
+            <div style="color: var(--text-muted); font-size: 0.9rem;" id="alert-subtitle">
+              No active elephant threats detected near your village sector.
+            </div>
+          </div>
+        </div>
+        <div class="alert-time-pill" id="alert-time-pill">
+          <i class="fa-regular fa-clock"></i> Checked: Just now
+        </div>
+      </div>
+
+      <div class="alert-instruction-lead" id="alert-instruction">
+        Safe to conduct agricultural and outdoor activities within the village perimeter.
+      </div>
+
+      <!-- Alert Details Grid -->
+      <div class="alert-details-grid">
+        <div class="detail-item">
+          <span class="detail-label"><i class="fa-solid fa-location-dot"></i> Village Sector</span>
+          <span class="detail-value" id="detail-location">Buthanahalli Border Fringe</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label"><i class="fa-solid fa-ruler-combined"></i> Distance to Elephant</span>
+          <span class="detail-value" id="detail-distance">&gt; 1.5 km (Safe Distance)</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label"><i class="fa-solid fa-paw"></i> Herd Count</span>
+          <span class="detail-value" id="detail-count">0 Elephants</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label"><i class="fa-solid fa-shield"></i> Safety Status</span>
+          <span class="detail-value" id="detail-status" style="color: #10b981;">ZONE CLEAR</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Safety Instructions Section (Do's and Don'ts) -->
+    <section>
+      <div class="section-header" style="text-align: left; margin-bottom: 1.25rem;">
+        <h2 style="font-size: 1.4rem;"><i class="fa-solid fa-triangle-exclamation" style="color: #f59e0b;"></i> Community Safety Protocols</h2>
+        <p>Official wildlife encounter guidelines approved by Karnataka Forest Department.</p>
+      </div>
+
+      <div class="safety-grid">
+        <!-- DO's -->
+        <div class="safety-card dos">
+          <h3 class="safety-card-title">
+            <i class="fa-solid fa-circle-check"></i> What YOU MUST DO
+          </h3>
+          <ul class="safety-list">
+            <li>
+              <i class="fa-solid fa-check"></i>
+              <span><strong>Remain Indoors:</strong> When an alert is active, stay inside sturdy concrete or brick homes.</span>
+            </li>
+            <li>
+              <i class="fa-solid fa-check"></i>
+              <span><strong>Keep Bright Lights On:</strong> Illuminate exterior compound solar lamps to deter elephants from crossing fences.</span>
+            </li>
+            <li>
+              <i class="fa-solid fa-check"></i>
+              <span><strong>Protect Livestock:</strong> Bring cows and domestic animals into covered, locked pens before dusk.</span>
+            </li>
+            <li>
+              <i class="fa-solid fa-check"></i>
+              <span><strong>Alert Neighbors:</strong> Inform nearby farm houses via phone or village public address system.</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- DON'Ts -->
+        <div class="safety-card donts">
+          <h3 class="safety-card-title">
+            <i class="fa-solid fa-circle-xmark"></i> What YOU MUST NEVER DO
+          </h3>
+          <ul class="safety-list">
+            <li>
+              <i class="fa-solid fa-xmark"></i>
+              <span><strong>Do NOT Confront Elephants:</strong> Never approach herds or take flash photographs; elephants perceive flash as a threat.</span>
+            </li>
+            <li>
+              <i class="fa-solid fa-xmark"></i>
+              <span><strong>Do NOT Throw Firecrackers or Stones:</strong> Provoking wild elephants causes panic charges and severe property damage.</span>
+            </li>
+            <li>
+              <i class="fa-solid fa-xmark"></i>
+              <span><strong>Do NOT Block Corridor Paths:</strong> Avoid standing or parking tractors across natural forest fringe animal routes.</span>
+            </li>
+            <li>
+              <i class="fa-solid fa-xmark"></i>
+              <span><strong>Do NOT Venture Out at Night:</strong> Never walk alone into crop fields between 7:00 PM and 6:00 AM during alert status.</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Emergency Hotline Numbers -->
+    <section class="emergency-hotlines-box">
+      <div class="section-header" style="text-align: left; margin-bottom: 0.5rem;">
+        <h3 style="font-size: 1.25rem;"><i class="fa-solid fa-phone-volume" style="color: #ef4444;"></i> Rapid Response Emergency Contacts</h3>
+        <p>Direct lines to on-duty Forest Patrol and Emergency Response Teams.</p>
+      </div>
+
+      <div class="hotline-cards-grid">
+        <div class="hotline-card">
+          <div class="hotline-info">
+            <h4>Forest Rapid Response Team (RRT)</h4>
+            <p>24x7 Wildlife Incident Hotline</p>
+          </div>
+          <a href="tel:1926" class="hotline-btn">
+            <i class="fa-solid fa-phone"></i> 1926
+          </a>
+        </div>
+
+        <div class="hotline-card">
+          <div class="hotline-info">
+            <h4>Bannerghatta Range Office</h4>
+            <p>Forest Officer On-Duty</p>
+          </div>
+          <a href="tel:+918027828100" class="hotline-btn">
+            <i class="fa-solid fa-phone"></i> Call Range Office
+          </a>
+        </div>
+
+        <div class="hotline-card">
+          <div class="hotline-info">
+            <h4>Anekal Police Station</h4>
+            <p>Emergency Law & Order Support</p>
+          </div>
+          <a href="tel:112" class="hotline-btn">
+            <i class="fa-solid fa-phone"></i> 112
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Recent Alerts History Feed -->
+    <section class="recent-alerts-section">
+      <div class="section-header" style="text-align: left; margin-bottom: 0.5rem;">
+        <h3 style="font-size: 1.25rem;"><i class="fa-solid fa-clock-rotate-left" style="color: var(--accent-cyan);"></i> Recent Sector Alert Broadcasts</h3>
+        <p>Live history of verified early warnings dispatched for your sector.</p>
+      </div>
+
+      <div class="alerts-feed-list" id="villager-alerts-feed">
+        <!-- Rendered dynamically -->
+        <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
+          <i class="fa-solid fa-spinner fa-spin" style="font-size: 1.5rem; margin-bottom: 0.5rem;"></i>
+          <p>Loading real-time sector alerts...</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    // Real-time polling for villager alerts
+    async function loadVillagerAlerts() {
+      try {
+        const response = await fetch('/api/villager/alerts');
+        const data = await response.json();
+
+        const banner = document.getElementById('villager-alert-banner');
+        const icon = document.getElementById('alert-icon');
+        const title = document.getElementById('alert-title');
+        const subtitle = document.getElementById('alert-subtitle');
+        const instruction = document.getElementById('alert-instruction');
+        const timePill = document.getElementById('alert-time-pill');
+        const detailLocation = document.getElementById('detail-location');
+        const detailDistance = document.getElementById('detail-distance');
+        const detailCount = document.getElementById('detail-count');
+        const detailStatus = document.getElementById('detail-status');
+
+        if (data.active_alert) {
+          // ELEPHANT DETECTED NEARBY
+          banner.className = 'villager-alert-banner danger';
+          icon.innerHTML = '<i class="fa-solid fa-triangle-exclamation" style="color: #ef4444; font-size: 2.8rem;"></i>';
+          title.textContent = '🚨 ELEPHANT DETECTED NEAR YOUR AREA';
+          subtitle.textContent = `Immediate precaution required for ${data.active_alert.location || 'Border Zone'}`;
+          instruction.textContent = '⚠️ Please remain indoors and avoid the detected forest fringe zone until all-clear is issued!';
+          timePill.innerHTML = `<i class="fa-solid fa-clock"></i> Detected: ${data.active_alert.time || 'Recently'}`;
+          
+          detailLocation.textContent = data.active_alert.location || 'Buthanahalli Forest Border';
+          detailDistance.textContent = data.active_alert.distance || '~380 meters from village fringe';
+          detailCount.textContent = `${data.active_alert.elephant_count || 1} Elephant(s) Confirmed`;
+          detailStatus.textContent = 'HIGH ALERT (ACTIVE)';
+          detailStatus.style.color = '#ef4444';
+        } else {
+          // NO ACTIVE THREAT
+          banner.className = 'villager-alert-banner safe';
+          icon.innerHTML = '<i class="fa-solid fa-circle-check" style="color: #10b981;"></i>';
+          title.textContent = 'ALL CLEAR &bull; ZONE SAFE';
+          subtitle.textContent = 'No active elephant threats detected near your village sector.';
+          instruction.textContent = 'Safe to conduct regular agricultural and outdoor activities within the village perimeter.';
+          timePill.innerHTML = '<i class="fa-solid fa-clock"></i> Status: Up-to-date';
+          
+          detailLocation.textContent = 'Buthanahalli Border Fringe';
+          detailDistance.textContent = '> 1.5 km (Safe Distance)';
+          detailCount.textContent = '0 Elephants';
+          detailStatus.textContent = 'ZONE CLEAR';
+          detailStatus.style.color = '#10b981';
+        }
+
+        // Render Recent Alerts Feed
+        const feedContainer = document.getElementById('villager-alerts-feed');
+        if (data.recent_alerts && data.recent_alerts.length > 0) {
+          let html = '';
+          data.recent_alerts.forEach(item => {
+            const isDanger = item.alert_type === 'ELEPHANT_CONFIRMED' || (item.elephant_count && item.elephant_count > 0);
+            html += `
+              <div class="alert-feed-item ${isDanger ? 'danger' : 'safe'}">
+                <div>
+                  <div style="font-weight: 700; color: #fff; font-size: 0.95rem; margin-bottom: 0.25rem;">
+                    ${isDanger ? '🚨 Elephant Corridor Warning' : 'ℹ️ Sector Status Update'}
+                  </div>
+                  <div style="font-size: 0.85rem; color: var(--text-muted);">
+                    ${item.message || (isDanger ? 'Elephant herd activity confirmed near border sector.' : 'Sensor monitoring routine all-clear.')}
+                  </div>
+                  <div style="font-size: 0.78rem; color: var(--text-dim); margin-top: 0.35rem;">
+                    <i class="fa-solid fa-location-dot"></i> ${item.location || 'Bannerghatta Range'} &bull; <i class="fa-regular fa-clock"></i> ${item.time || item.created_at || 'Recent'}
+                  </div>
+                </div>
+                <div>
+                  <span class="role-badge-tag ${isDanger ? 'villager' : 'officer'}" style="font-size:0.75rem;">
+                    ${isDanger ? 'Action Required' : 'Logged'}
+                  </span>
+                </div>
+              </div>
+            `;
+          });
+          feedContainer.innerHTML = html;
+        } else {
+          feedContainer.innerHTML = `
+            <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
+              <i class="fa-solid fa-shield-halved" style="font-size: 1.5rem; margin-bottom: 0.5rem; color: #10b981;"></i>
+              <p>No recent alerts on record for this sector.</p>
+            </div>
+          `;
+        }
+
+      } catch (err) {
+        console.error('Error loading villager alerts:', err);
+      }
+    }
+
+    async function handleLogout() {
+      try {
+        const res = await fetch('/api/auth/logout', { method: 'POST' });
+        const data = await res.json();
+        window.location.href = data.redirect_url || '/';
+      } catch (e) {
+        window.location.href = '/';
+      }
+    }
+
+    // Auto-refresh every 3 seconds for safety
+    document.addEventListener('DOMContentLoaded', () => {
+      loadVillagerAlerts();
+      setInterval(loadVillagerAlerts, 3000);
+    });
+  </script>
+</body>
+</html>

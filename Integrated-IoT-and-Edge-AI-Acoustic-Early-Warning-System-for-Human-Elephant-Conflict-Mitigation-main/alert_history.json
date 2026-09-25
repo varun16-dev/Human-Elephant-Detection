@@ -1,74 +1,178 @@
 [
   {
-    "alert_id": "alert_1789815506",
-    "alert_type": "ELEPHANT_CONFIRMED",
-    "status": "ACTIVE",
-    "timestamp": "2026-09-19T16:28:26.034603",
-    "timestamp_unix": 1789815506.0346036,
-    "elephant_count": 1,
-    "confidence": 52.69,
-    "image_path": "C:\\Users\\micva\\Downloads\\Complete System\\WelcomeScreen\\fall_final\\detected_elephants\\elephant_20260919_162825.jpg",
-    "csv_data": {
-      "date": "2026-09-19",
-      "time": "16:28:25",
-      "timestamp": "2026-09-19T16:28:25",
-      "elephant_detected": "YES",
-      "elephant_count": 1,
-      "confidence": 47.05
-    },
+    "event_id": "activity_1790098514",
+    "event_type": "ACTIVITY_DETECTED",
+    "node_id": "ESP32-NODE-01",
+    "timestamp": "2026-09-22T23:05:14.847848",
+    "timestamp_unix": 1790098514.847841,
+    "pir_detected": false,
+    "sound_detected": true,
+    "trigger_source": "SOUND",
+    "location": "Anekal, Karnataka",
+    "latitude": 12.8224,
+    "longitude": 77.577,
+    "camera_verification": "PENDING",
+    "elephant_detected": false,
+    "notification_sent": false,
+    "sms_sent": false,
     "delivery_status": {
-      "web_push": {
-        "forest_officers": "failed",
-        "villagers": "failed"
-      }
-    }
+      "web_push": "failed",
+      "sms": "pending"
+    },
+    "sms_message": "\u26a0\ufe0f Activity detected at Anekal, Karnataka. SOUND detected. Please check the camera for verification."
   },
   {
-    "alert_id": "alert_1789831397",
-    "alert_type": "ELEPHANT_CONFIRMED",
-    "status": "ACTIVE",
-    "timestamp": "2026-09-19T20:53:17.752187",
-    "timestamp_unix": 1789831397.7521868,
-    "elephant_count": 3,
-    "confidence": 77.72,
-    "image_path": "c:\\Users\\micva\\Downloads\\Complete System\\WelcomeScreen\\fall_final\\detected_elephants\\elephant_20260919_205314.jpg",
-    "csv_data": {
-      "date": "2026-09-19",
-      "time": "20:53:17",
-      "timestamp": "2026-09-19T20:53:17",
-      "elephant_detected": "YES",
-      "elephant_count": 3,
-      "confidence": 74.19
-    },
+    "event_id": "activity_1790098545",
+    "event_type": "ACTIVITY_DETECTED",
+    "node_id": "ESP32-NODE-01",
+    "timestamp": "2026-09-22T23:05:45.799772",
+    "timestamp_unix": 1790098545.7997613,
+    "pir_detected": false,
+    "sound_detected": true,
+    "trigger_source": "SOUND",
+    "location": "Anekal, Karnataka",
+    "latitude": 12.8224,
+    "longitude": 77.577,
+    "camera_verification": "PENDING",
+    "elephant_detected": false,
+    "notification_sent": false,
+    "sms_sent": false,
     "delivery_status": {
-      "web_push": {
-        "forest_officers": "failed",
-        "villagers": "failed"
-      }
-    }
+      "web_push": "failed",
+      "sms": "pending"
+    },
+    "sms_message": "\u26a0\ufe0f Activity detected at Anekal, Karnataka. SOUND detected. Please check the camera for verification."
   },
   {
-    "alert_id": "alert_1789832683",
-    "alert_type": "ELEPHANT_CONFIRMED",
-    "status": "ACTIVE",
-    "timestamp": "2026-09-19T21:14:43.269874",
-    "timestamp_unix": 1789832683.2698746,
-    "elephant_count": 1,
-    "confidence": 54.72,
-    "image_path": "c:\\Users\\micva\\Downloads\\Complete System\\WelcomeScreen\\fall_final\\detected_elephants\\elephant_20260919_211443.jpg",
-    "csv_data": {
-      "date": "2026-09-19",
-      "time": "21:14:43",
-      "timestamp": "2026-09-19T21:14:43",
-      "elephant_detected": "YES",
-      "elephant_count": 1,
-      "confidence": 45.35
-    },
+    "event_id": "activity_1790098565",
+    "event_type": "ACTIVITY_DETECTED",
+    "node_id": "ESP32-NODE-01",
+    "timestamp": "2026-09-22T23:06:05.716440",
+    "timestamp_unix": 1790098565.7164237,
+    "pir_detected": false,
+    "sound_detected": true,
+    "trigger_source": "SOUND",
+    "location": "Anekal, Karnataka",
+    "latitude": 12.8224,
+    "longitude": 77.577,
+    "camera_verification": "PENDING",
+    "elephant_detected": false,
+    "notification_sent": false,
+    "sms_sent": false,
     "delivery_status": {
-      "web_push": {
-        "forest_officers": "failed",
-        "villagers": "failed"
-      }
-    }
+      "web_push": "failed",
+      "sms": "pending"
+    },
+    "sms_message": "\u26a0\ufe0f Activity detected at Anekal, Karnataka. SOUND detected. Please check the camera for verification."
+  },
+  {
+    "event_id": "activity_1790098625",
+    "event_type": "ACTIVITY_DETECTED",
+    "node_id": "ESP32-NODE-01",
+    "timestamp": "2026-09-22T23:07:05.927278",
+    "timestamp_unix": 1790098625.9272702,
+    "pir_detected": false,
+    "sound_detected": true,
+    "trigger_source": "SOUND",
+    "location": "Anekal, Karnataka",
+    "latitude": 12.8224,
+    "longitude": 77.577,
+    "camera_verification": "PENDING",
+    "elephant_detected": false,
+    "notification_sent": false,
+    "sms_sent": false,
+    "delivery_status": {
+      "web_push": "failed",
+      "sms": "pending"
+    },
+    "sms_message": "\u26a0\ufe0f Activity detected at Anekal, Karnataka. SOUND detected. Please check the camera for verification."
+  },
+  {
+    "event_id": "activity_1790098772",
+    "event_type": "ACTIVITY_DETECTED",
+    "node_id": "ESP32-NODE-01",
+    "timestamp": "2026-09-22T23:09:32.312502",
+    "timestamp_unix": 1790098772.312496,
+    "pir_detected": false,
+    "sound_detected": true,
+    "trigger_source": "SOUND",
+    "location": "Anekal, Karnataka",
+    "latitude": 12.8224,
+    "longitude": 77.577,
+    "camera_verification": "PENDING",
+    "elephant_detected": false,
+    "notification_sent": false,
+    "sms_sent": false,
+    "delivery_status": {
+      "web_push": "failed",
+      "sms": "pending"
+    },
+    "sms_message": "\u26a0\ufe0f Activity detected at Anekal, Karnataka. SOUND detected. Please check the camera for verification."
+  },
+  {
+    "event_id": "activity_1790098832",
+    "event_type": "ACTIVITY_DETECTED",
+    "node_id": "ESP32-NODE-01",
+    "timestamp": "2026-09-22T23:10:32.488129",
+    "timestamp_unix": 1790098832.4881227,
+    "pir_detected": false,
+    "sound_detected": true,
+    "trigger_source": "SOUND",
+    "location": "Anekal, Karnataka",
+    "latitude": 12.8224,
+    "longitude": 77.577,
+    "camera_verification": "PENDING",
+    "elephant_detected": false,
+    "notification_sent": false,
+    "sms_sent": false,
+    "delivery_status": {
+      "web_push": "failed",
+      "sms": "pending"
+    },
+    "sms_message": "\u26a0\ufe0f Activity detected at Anekal, Karnataka. SOUND detected. Please check the camera for verification."
+  },
+  {
+    "event_id": "activity_1790098854",
+    "event_type": "ACTIVITY_DETECTED",
+    "node_id": "ESP32-NODE-01",
+    "timestamp": "2026-09-22T23:10:54.542611",
+    "timestamp_unix": 1790098854.5426006,
+    "pir_detected": false,
+    "sound_detected": true,
+    "trigger_source": "SOUND",
+    "location": "Anekal, Karnataka",
+    "latitude": 12.8224,
+    "longitude": 77.577,
+    "camera_verification": "PENDING",
+    "elephant_detected": false,
+    "notification_sent": false,
+    "sms_sent": false,
+    "delivery_status": {
+      "web_push": "failed",
+      "sms": "pending"
+    },
+    "sms_message": "\u26a0\ufe0f Activity detected at Anekal, Karnataka. SOUND detected. Please check the camera for verification."
+  },
+  {
+    "event_id": "activity_1790098872",
+    "event_type": "ACTIVITY_DETECTED",
+    "node_id": "ESP32-NODE-01",
+    "timestamp": "2026-09-22T23:11:12.716245",
+    "timestamp_unix": 1790098872.716238,
+    "pir_detected": false,
+    "sound_detected": true,
+    "trigger_source": "SOUND",
+    "location": "Anekal, Karnataka",
+    "latitude": 12.8224,
+    "longitude": 77.577,
+    "camera_verification": "PENDING",
+    "elephant_detected": false,
+    "notification_sent": false,
+    "sms_sent": false,
+    "delivery_status": {
+      "web_push": "failed",
+      "sms": "pending"
+    },
+    "sms_message": "\u26a0\ufe0f Activity detected at Anekal, Karnataka. SOUND detected. Please check the camera for verification."
   }
 ]

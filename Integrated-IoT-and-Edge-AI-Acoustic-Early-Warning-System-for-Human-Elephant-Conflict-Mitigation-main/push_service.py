@@ -2,7 +2,8 @@
 Web Push Service for Elephant Alert System
 Department of AI & ML, Sri Sairam College of Engineering
 
-Manages web push subscriptions and sends browser notifications.
+Manages web push subscriptions using Supabase notification_config table
+and logs outcomes to notification_history table.
 """
 
 import os
@@ -10,12 +11,12 @@ import json
 import pywebpush
 from datetime import datetime
 from threading import Lock
+from supabase_client import get_supabase_admin_client
 
 class PushService:
-    """Manages web push subscriptions and notifications"""
+    """Manages web push subscriptions and notifications via Supabase"""
     
-    def __init__(self, subscriptions_path="push_subscriptions.json"):
-        self.subscriptions_path = subscriptions_path
+    def __init__(self):
         self.lock = Lock()
         
         # Load VAPID keys from environment
@@ -24,28 +25,6 @@ class PushService:
         self.vapid_claims = {
             "sub": f"mailto:{os.environ.get('VAPID_CLAIMS_EMAIL', 'admin@example.com')}"
         }
-        
-        # Load subscriptions
-        self.subscriptions = self._load_subscriptions()
-    
-    def _load_subscriptions(self):
-        """Load push subscriptions from JSON file"""
-        if os.path.exists(self.subscriptions_path):
-            try:
-                with open(self.subscriptions_path, 'r') as f:
-                    return json.load(f)
-            except Exception as e:
-                print(f"Error loading subscriptions: {e}")
-        
-        return []
-    
-    def _save_subscriptions(self):
-        """Save subscriptions to JSON file"""
-        try:
-            with open(self.subscriptions_path, 'w') as f:
-                json.dump(self.subscriptions, f, indent=2)
-        except Exception as e:
-            print(f"Error saving subscriptions: {e}")
     
     def is_configured(self):
         """Check if VAPID keys are configured"""
@@ -55,55 +34,119 @@ class PushService:
         """Get the VAPID public key for frontend subscription"""
         return self.vapid_public_key
     
-    def add_subscription(self, subscription_data, user_role="VILLAGER", user_name="Unknown"):
-        """Add a new push subscription"""
+    def add_subscription(self, subscription_data, user_id):
+        """Add a new push subscription to Supabase notification_config"""
+        if not user_id:
+            return None
+            
         with self.lock:
-            subscription_id = f"sub_{len(self.subscriptions) + 1:03d}"
+            sb = get_supabase_admin_client()
             
-            new_subscription = {
-                "id": subscription_id,
-                "endpoint": subscription_data.get("endpoint"),
-                "keys": subscription_data.get("keys", {}),
-                "user_role": user_role,
-                "user_name": user_name,
-                "enabled": True,
-                "created_at": datetime.now().isoformat()
-            }
+            # Upsert into notification_config
+            # We assume one web_push subscription per user for simplicity,
+            # or we can just insert.
+            # To handle multiple devices, we would need to check if it exists.
+            recipient_data = json.dumps(subscription_data)
             
-            self.subscriptions.append(new_subscription)
-            self._save_subscriptions()
+            # Check if this exact subscription already exists for this user
+            existing = sb.table('notification_config').select('*').eq('user_id', user_id).eq('alert_type', 'web_push').execute()
             
-            return subscription_id
+            for config in existing.data:
+                if config['recipient'] == recipient_data:
+                    return config['id']
+                    
+            # Insert new
+            res = sb.table('notification_config').insert({
+                "user_id": user_id,
+                "alert_type": "web_push",
+                "recipient": recipient_data,
+                "enabled": True
+            }).execute()
+            
+            if res.data:
+                return res.data[0]['id']
+            return None
     
-    def remove_subscription(self, subscription_id):
-        """Remove a push subscription"""
+    def disable_subscription(self, config_id):
+        """Disable a subscription"""
         with self.lock:
-            self.subscriptions = [s for s in self.subscriptions if s["id"] != subscription_id]
-            self._save_subscriptions()
+            sb = get_supabase_admin_client()
+            sb.table('notification_config').update({"enabled": False}).eq('id', config_id).execute()
             return True
-    
-    def disable_subscription(self, subscription_id):
-        """Disable a subscription without removing it"""
+
+    def remove_subscription(self, endpoint, user_id):
+        """Remove a subscription from Supabase notification_config"""
+        if not user_id:
+            return False
+            
         with self.lock:
-            for sub in self.subscriptions:
-                if sub["id"] == subscription_id:
-                    sub["enabled"] = False
-                    self._save_subscriptions()
-                    return True
+            sb = get_supabase_admin_client()
+            # Find the subscription for this user
+            existing = sb.table('notification_config').select('*').eq('user_id', user_id).eq('alert_type', 'web_push').execute()
+            
+            for config in existing.data:
+                try:
+                    sub_data = json.loads(config['recipient'])
+                    if sub_data.get('endpoint') == endpoint:
+                        sb.table('notification_config').delete().eq('id', config['id']).execute()
+                        return True
+                except:
+                    pass
             return False
     
     def get_subscriptions(self, role=None, enabled_only=True):
-        """Get subscriptions, optionally filtered by role"""
+        """Get subscriptions, optionally filtered by user role from profiles"""
         with self.lock:
-            subscriptions = self.subscriptions
+            sb = get_supabase_admin_client()
             
+            # Get all web push configs
+            query = sb.table('notification_config').select('id, user_id, recipient, enabled').eq('alert_type', 'web_push')
             if enabled_only:
-                subscriptions = [s for s in subscriptions if s.get("enabled", False)]
+                query = query.eq('enabled', True)
+                
+            configs = query.execute().data
             
+            if not configs:
+                return []
+                
             if role:
-                subscriptions = [s for s in subscriptions if s.get("user_role") == role]
+                # We need to filter by role. Let's fetch profiles for these user_ids.
+                user_ids = [c['user_id'] for c in configs if c.get('user_id')]
+                if not user_ids:
+                    return []
+                
+                profiles_res = sb.table('profiles').select('user_id, role, full_name').in_('user_id', user_ids).execute()
+                profiles = {p['user_id']: p for p in profiles_res.data}
+                
+                # Filter configs where the user's role matches
+                filtered_configs = []
+                for c in configs:
+                    p = profiles.get(c['user_id'])
+                    # role might be case insensitive or exact match based on the system
+                    if p and p['role'].upper() == role.upper():
+                        c['user_name'] = p['full_name']
+                        c['user_role'] = p['role']
+                        filtered_configs.append(c)
+                        
+                configs = filtered_configs
             
-            return subscriptions
+            # Format the output to match what the old method returned
+            formatted_subs = []
+            for c in configs:
+                try:
+                    sub_data = json.loads(c['recipient'])
+                    formatted_subs.append({
+                        "id": c['id'],
+                        "user_id": c['user_id'],
+                        "user_name": c.get('user_name', 'Unknown'),
+                        "user_role": c.get('user_role', 'Unknown'),
+                        "endpoint": sub_data.get("endpoint"),
+                        "keys": sub_data.get("keys", {})
+                    })
+                except:
+                    pass
+                    
+            return formatted_subs
 
     def send_notification(self, subscription, data):
         """Send a push notification to a single subscription"""
@@ -111,83 +154,153 @@ class PushService:
             return {"success": False, "error": "VAPID not configured"}
         
         try:
-            # Prepare subscription data
             subscription_info = {
                 "endpoint": subscription["endpoint"],
                 "keys": subscription["keys"]
             }
             
-            # Send notification
             pywebpush.webpush(
                 subscription_info,
                 data=json.dumps(data),
                 vapid_private_key=self.vapid_private_key,
                 vapid_claims=self.vapid_claims
             )
-            
             return {"success": True}
-        
         except Exception as e:
             return {"success": False, "error": str(e)}
+            
+    def _log_notification_history(self, alert_id, user_id, recipient, message, status, error_message=None):
+        sb = get_supabase_admin_client()
+        sb.table('notification_history').insert({
+            "alert_id": alert_id,
+            "user_id": user_id,
+            "alert_type": "web_push",
+            "recipient": recipient,
+            "message": json.dumps(message),
+            "status": status,
+            "error_message": error_message,
+            "sent_at": datetime.now().isoformat() if status == 'sent' else None
+        }).execute()
     
+    def send_activity_alert(self, activity_event, role=None):
+        """Send activity detection alert to all subscribed users"""
+        if not self.is_configured():
+            return {"success": False, "error": "VAPID not configured", "recipients": []}
+        
+        subscriptions = self.get_subscriptions(role=role, enabled_only=True)
+        if not subscriptions:
+            return {"success": False, "error": "No active subscriptions", "recipients": []}
+        
+        trigger_source = activity_event.get("trigger_source", "PIR")
+        location = activity_event.get("location", "Unknown")
+        event_id = activity_event.get("event_id")
+        
+        notification_data = {
+            "title": "⚠️ Activity Detected",
+            "body": f"{trigger_source} detected at {location}. Please check the camera.",
+            "data": {
+                "event_id": event_id,
+                "event_type": "ACTIVITY_DETECTED",
+                "trigger_source": trigger_source,
+                "location": location,
+                "camera_verification": activity_event.get("camera_verification", "PENDING"),
+                "url": "/#camera-tab"
+            },
+            "timestamp": activity_event.get("timestamp")
+        }
+        
+        results = []
+        for sub in subscriptions:
+            result = self.send_notification(sub, notification_data)
+            status = 'sent' if result.get("success") else 'failed'
+            
+            self._log_notification_history(
+                alert_id=None, # Not an elephant alert yet
+                user_id=sub['user_id'],
+                recipient=sub['endpoint'],
+                message=notification_data,
+                status=status,
+                error_message=result.get("error")
+            )
+            
+            results.append({
+                "subscription_id": sub["id"],
+                "sent": result.get("success", False),
+                "error": result.get("error")
+            })
+            
+            if not result.get("success", False):
+                self.disable_subscription(sub["id"])
+        
+        success_count = sum(1 for r in results if r["sent"])
+        return {
+            "success": success_count > 0,
+            "successful": success_count,
+            "failed": len(subscriptions) - success_count,
+        }
+
     def send_elephant_alert(self, alert_event, role=None):
         """Send elephant alert to all subscribed users"""
         if not self.is_configured():
             return {"success": False, "error": "VAPID not configured", "recipients": []}
         
-        # Get subscriptions
         subscriptions = self.get_subscriptions(role=role, enabled_only=True)
-        
         if not subscriptions:
             return {"success": False, "error": "No active subscriptions", "recipients": []}
         
-        # Prepare notification data based on alert type
-        if alert_event.get("alert_type") == "TEST":
-            notification_data = {
-                "title": "⚠️ TEST NOTIFICATION",
-                "body": "This is only a test of the Elephant Monitoring Web Push system.",
-                "data": {
-                    "alert_id": alert_event.get("alert_id"),
-                    "url": "/#alerts-tab"
-                },
-                "timestamp": alert_event.get("timestamp")
-            }
-        else:
-            notification_data = {
-                "title": "🐘 Elephant Confirmed",
-                "body": f"Count: {alert_event.get('elephant_count', 0)} | Confidence: {alert_event.get('confidence', 0)}%",
-                "data": {
-                    "alert_id": alert_event.get("alert_id"),
-                    "url": "/#camera-tab"
-                },
-                "timestamp": alert_event.get("timestamp")
-            }
+        location = alert_event.get("location", "Unknown")
+        alert_id = alert_event.get("event_id") or alert_event.get("alert_id")
         
-        # Send to each subscription
+        notification_data = {
+            "title": "🐘 ELEPHANT DETECTED",
+            "body": f"Camera verification confirmed an elephant at {location}. Immediate attention required.",
+            "data": {
+                "event_id": alert_id,
+                "event_type": "ELEPHANT_DETECTED",
+                "location": location,
+                "confidence": alert_event.get("confidence", 0),
+                "image_path": alert_event.get("image_path", ""),
+                "url": "/#camera-tab"
+            },
+            "timestamp": alert_event.get("timestamp")
+        }
+        
         results = []
-        for subscription in subscriptions:
-            result = self.send_notification(subscription, notification_data)
+        for sub in subscriptions:
+            result = self.send_notification(sub, notification_data)
+            status = 'sent' if result.get("success") else 'failed'
+            
+            # We assume alert_id is a valid UUID if it comes from the alerts table.
+            # If not, we might need to handle it gracefully, but usually it's tied to an alert in the DB.
+            # In Phase 4, the alert system should generate UUIDs.
+            try:
+                import uuid
+                valid_uuid = str(uuid.UUID(str(alert_id)))
+            except:
+                valid_uuid = None
+                
+            self._log_notification_history(
+                alert_id=valid_uuid,
+                user_id=sub['user_id'],
+                recipient=sub['endpoint'],
+                message=notification_data,
+                status=status,
+                error_message=result.get("error")
+            )
             
             results.append({
-                "subscription_id": subscription["id"],
-                "user_name": subscription.get("user_name", "Unknown"),
-                "user_role": subscription.get("user_role", "Unknown"),
-                "sent": result.get("success", False),
-                "error": result.get("error")
+                "subscription_id": sub["id"],
+                "sent": result.get("success", False)
             })
             
-            # Disable subscription if it fails repeatedly
             if not result.get("success", False):
-                self.disable_subscription(subscription["id"])
+                self.disable_subscription(sub["id"])
         
         success_count = sum(1 for r in results if r["sent"])
-        
         return {
             "success": success_count > 0,
-            "total_subscriptions": len(subscriptions),
             "successful": success_count,
             "failed": len(subscriptions) - success_count,
-            "results": results
         }
 
 # Global instance
@@ -195,7 +308,6 @@ push_service = None
 service_lock = Lock()
 
 def get_push_service():
-    """Get or create the global push service instance"""
     global push_service
     with service_lock:
         if push_service is None:

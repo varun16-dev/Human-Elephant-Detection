@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Integrated IoT & Edge-AI Acoustic Early Warning System | Wildlife & Community Protection</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <!-- Core Stylesheets -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/landing_and_auth.css') }}">
+</head>
+<body>
+
+  <!-- Landing Header / Navbar -->
+  <header class="landing-header">
+    <div class="brand-section">
+      <div class="logo-badge" style="background: linear-gradient(135deg, #10b981, #06b6d4);">
+        <i class="fa-solid fa-shield-cat" style="color: #000; font-size: 1.25rem;"></i>
+      </div>
+      <div class="title-group">
+        <h1 style="font-size: 1.15rem; font-family: var(--font-title); font-weight: 700; color: #fff;">
+          Integrated IoT & Edge-AI Acoustic Early Warning System
+        </h1>
+      </div>
+    </div>
+
+    <nav class="landing-nav-links">
+      <a href="#home" class="active"><i class="fa-solid fa-house"></i> Home</a>
+      <a href="#about"><i class="fa-solid fa-circle-info"></i> About System</a>
+      <a href="#how-it-works"><i class="fa-solid fa-diagram-project"></i> How It Works</a>
+      <a href="#role-portal" class="btn-nav-login"><i class="fa-solid fa-right-to-bracket"></i> Login Portal</a>
+    </nav>
+  </header>
+
+  <!-- Main Hero Section -->
+  <section id="home" class="hero-section">
+    <div class="hero-pill">
+      <span class="dot-indicator active-pulse" style="background: #10b981; width: 8px; height: 8px; border-radius: 50%; display: inline-block;"></span>
+      Active Wildlife Corridor Monitoring &bull; Bannerghatta Range
+    </div>
+
+    <h1 class="hero-title">
+      Integrated IoT & Edge-AI Acoustic Early Warning System
+    </h1>
+
+    <p class="hero-subtitle">
+      Real-time elephant monitoring and early warning system for protecting communities and wildlife.
+    </p>
+
+    <div class="hero-cta-group">
+      <a href="#role-portal" class="btn-hero-primary">
+        <i class="fa-solid fa-lock"></i> Access Role Login
+      </a>
+      <a href="#how-it-works" class="btn-hero-secondary">
+        <i class="fa-solid fa-play"></i> How System Operates
+      </a>
+    </div>
+  </section>
+
+  <!-- Role Selection Cards Section -->
+  <section class="role-cards-section">
+    <div class="section-header">
+      <h2>Role-Based Operations</h2>
+      <p>Select your authorized role to access dedicated monitoring, response, and safety controls.</p>
+    </div>
+
+    <div class="role-grid">
+      <!-- Card 1: Forest Officer -->
+      <div class="role-card forest">
+        <div class="role-icon forest">
+          <i class="fa-solid fa-tree"></i>
+        </div>
+        <span class="role-badge">Forest Department</span>
+        <h3 class="role-title">🌲 Forest Officer</h3>
+        <p class="role-desc">
+          Full telemetric corridor control, live sensor nodes, AI acoustic analysis, camera captures, and deterrent deployment.
+        </p>
+        <button class="btn-role-login" onclick="selectRoleLogin('forest_officer')">
+          <i class="fa-solid fa-shield-halved"></i> Forest Officer Login
+        </button>
+      </div>
+
+      <!-- Card 2: Villager -->
+      <div class="role-card villager">
+        <div class="role-icon villager">
+          <i class="fa-solid fa-house-chimney-window"></i>
+        </div>
+        <span class="role-badge">Community Safety</span>
+        <h3 class="role-title">🏠 Villager</h3>
+        <p class="role-desc">
+          Instant community safety notifications, proximity warnings, safe zone directions, and emergency assistance.
+        </p>
+        <button class="btn-role-login" onclick="selectRoleLogin('villager')">
+          <i class="fa-solid fa-bell"></i> Villager Login
+        </button>
+      </div>
+
+      <!-- Card 3: Police -->
+      <div class="role-card police">
+        <div class="role-icon police">
+          <i class="fa-solid fa-building-shield"></i>
+        </div>
+        <span class="role-badge">Law Enforcement</span>
+        <h3 class="role-title">👮 Police</h3>
+        <p class="role-desc">
+          Incident dispatch response, herd trajectory alerts, roadblock coordination, and emergency status management.
+        </p>
+        <button class="btn-role-login" onclick="selectRoleLogin('police')">
+          <i class="fa-solid fa-user-shield"></i> Police Login
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- System Overview Pillars -->
+  <section id="about" class="pillars-section">
+    <div class="section-header">
+      <h2>System Overview</h2>
+      <p>Cutting-edge edge intelligence built for zero-latency human-wildlife conflict mitigation.</p>
+    </div>
+
+    <div class="pillars-grid">
+      <div class="pillar-item">
+        <div class="pillar-icon-box">
+          <i class="fa-solid fa-tower-broadcast"></i>
+        </div>
+        <div class="pillar-info">
+          <h3>Real-Time IoT Monitoring</h3>
+          <p>Multi-node ESP32 mesh nodes with acoustic decibel sensors, PIR motion detectors, and GPS coordinates streaming live to cloud and dashboard.</p>
+        </div>
+      </div>
+
+      <div class="pillar-item">
+        <div class="pillar-icon-box">
+          <i class="fa-solid fa-brain"></i>
+        </div>
+        <div class="pillar-info">
+          <h3>Edge-AI Acoustic & Vision</h3>
+          <p>Dual-stage confirmation layer fusing infrasonic elephant rumble acoustics and edge camera verification to eliminate false alarms.</p>
+        </div>
+      </div>
+
+      <div class="pillar-item">
+        <div class="pillar-icon-box">
+          <i class="fa-solid fa-bullhorn"></i>
+        </div>
+        <div class="pillar-info">
+          <h3>Early Warning & Rapid Alerts</h3>
+          <p>Instantaneous multi-channel dispatch via Web Push, SMS, and WhatsApp alerts notifying villagers and response teams within seconds.</p>
+        </div>
+      </div>
+
+      <div class="pillar-item">
+        <div class="pillar-icon-box">
+          <i class="fa-solid fa-shield-heart"></i>
+        </div>
+        <div class="pillar-info">
+          <h3>Wildlife & Community Safety</h3>
+          <p>Humane non-lethal bio-acoustic deterrents (bee hive sounds, strobe beacons) gently steering elephant herds back toward sanctuary zones.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- How It Works Section -->
+  <section id="how-it-works" class="how-it-works-section">
+    <div class="section-header">
+      <h2>How It Works</h2>
+      <p>End-to-end autonomous flow from corridor sensor to emergency community response.</p>
+    </div>
+
+    <div class="steps-grid">
+      <div class="step-card">
+        <div class="step-number">01</div>
+        <div class="step-icon-wrap"><i class="fa-solid fa-wave-square"></i></div>
+        <h3>IoT Sensing</h3>
+        <p>Field ESP32 nodes capture PIR movement and ambient acoustic levels in high-risk border corridors.</p>
+      </div>
+
+      <div class="step-card">
+        <div class="step-number">02</div>
+        <div class="step-icon-wrap"><i class="fa-solid fa-microchip"></i></div>
+        <h3>AI Verification</h3>
+        <p>Acoustic and camera models process incoming signals to confirm genuine elephant presence.</p>
+      </div>
+
+      <div class="step-card">
+        <div class="step-number">03</div>
+        <div class="step-icon-wrap"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+        <h3>Cloud Dispatch</h3>
+        <p>Supabase syncs telemetry and triggers synchronized role-specific notifications instantly.</p>
+      </div>
+
+      <div class="step-card">
+        <div class="step-number">04</div>
+        <div class="step-icon-wrap"><i class="fa-solid fa-person-shelter"></i></div>
+        <h3>Targeted Action</h3>
+        <p>Villagers stay indoors, police manage road perimeters, and forest rangers deploy humane deterrents.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Interactive Role Selection & Login Section -->
+  <section id="role-portal" class="auth-portal-section">
+    <div class="section-header" style="margin-bottom: 2rem;">
+      <h2>Role-Based Login Portal</h2>
+      <p>Authenticate with your verified credentials to enter your role dashboard.</p>
+    </div>
+
+    <div class="auth-box">
+      <!-- Role Switch Tabs -->
+      <div class="auth-tabs">
+        <button id="tab-officer-btn" class="auth-tab-btn active tab-forest" onclick="selectRoleLogin('forest_officer')">
+          <i class="fa-solid fa-tree"></i> Forest Officer
+        </button>
+        <button id="tab-villager-btn" class="auth-tab-btn tab-villager" onclick="selectRoleLogin('villager')">
+          <i class="fa-solid fa-house"></i> Villager
+        </button>
+        <button id="tab-police-btn" class="auth-tab-btn tab-police" onclick="selectRoleLogin('police')">
+          <i class="fa-solid fa-shield"></i> Police
+        </button>
+      </div>
+
+      <!-- Error Alert Box -->
+      <div id="auth-error-alert" class="auth-error-alert">
+        <i class="fa-solid fa-circle-exclamation"></i>
+        <span id="auth-error-text">Authentication failed. Check credentials.</span>
+      </div>
+
+      <!-- Form: Forest Officer Login -->
+      <form id="form-forest-officer" class="auth-form" onsubmit="handleAuthSubmit(event, 'forest_officer')">
+        <div class="auth-form-group">
+          <label for="officer-email">Official Email</label>
+          <div class="auth-input-wrapper">
+            <i class="fa-solid fa-envelope auth-input-icon"></i>
+            <input type="email" id="officer-email" class="auth-input" placeholder="e.g. officer@forest.gov.in" required>
+          </div>
+        </div>
+
+        <div class="auth-form-group">
+          <label for="officer-password">Password</label>
+          <div class="auth-input-wrapper">
+            <i class="fa-solid fa-lock auth-input-icon"></i>
+            <input type="password" id="officer-password" class="auth-input" placeholder="Enter officer password" required>
+          </div>
+        </div>
+
+        <button type="submit" id="btn-submit-officer" class="btn-auth-submit forest">
+          <i class="fa-solid fa-shield-halved"></i> Login to Forest Officer Dashboard
+        </button>
+
+        <div class="demo-credentials-box">
+          <strong>Demo Officer Account:</strong><br>
+          Email: <code>officer@forest.gov.in</code> &bull; Password: <code>Officer@2026!</code>
+          <div>
+            <button type="button" class="demo-fill-btn" onclick="fillDemo('officer@forest.gov.in', 'Officer@2026!', 'forest_officer')">
+              <i class="fa-solid fa-wand-magic-sparkles"></i> Auto-fill Officer Credentials
+            </button>
+          </div>
+        </div>
+      </form>
+
+      <!-- Form: Villager Login -->
+      <form id="form-villager" class="auth-form" style="display: none;" onsubmit="handleAuthSubmit(event, 'villager')">
+        <div class="auth-form-group">
+          <label for="villager-identifier">Registered Phone or Email</label>
+          <div class="auth-input-wrapper">
+            <i class="fa-solid fa-phone auth-input-icon"></i>
+            <input type="text" id="villager-identifier" class="auth-input" placeholder="e.g. +919876543210 or villager@anekal.gov.in" required>
+          </div>
+        </div>
+
+        <div class="auth-form-group">
+          <label for="villager-password">Password</label>
+          <div class="auth-input-wrapper">
+            <i class="fa-solid fa-lock auth-input-icon"></i>
+            <input type="password" id="villager-password" class="auth-input" placeholder="Enter villager password" required>
+          </div>
+        </div>
+
+        <button type="submit" id="btn-submit-villager" class="btn-auth-submit villager">
+          <i class="fa-solid fa-bell"></i> Login to Villager Safety Dashboard
+        </button>
+
+        <div class="demo-credentials-box">
+          <strong>Demo Villager Account:</strong><br>
+          Email/Phone: <code>villager@anekal.gov.in</code> (or <code>+919876543210</code>) &bull; Password: <code>Villager@2026!</code>
+          <div>
+            <button type="button" class="demo-fill-btn" onclick="fillDemo('villager@anekal.gov.in', 'Villager@2026!', 'villager')">
+              <i class="fa-solid fa-wand-magic-sparkles"></i> Auto-fill Villager Credentials
+            </button>
+          </div>
+        </div>
+      </form>
+
+      <!-- Form: Police Login -->
+      <form id="form-police" class="auth-form" style="display: none;" onsubmit="handleAuthSubmit(event, 'police')">
+        <div class="auth-form-group">
+          <label for="police-identifier">Official Email or Station ID</label>
+          <div class="auth-input-wrapper">
+            <i class="fa-solid fa-id-badge auth-input-icon"></i>
+            <input type="text" id="police-identifier" class="auth-input" placeholder="e.g. police@ksp.gov.in or KA-POL-8841" required>
+          </div>
+        </div>
+
+        <div class="auth-form-group">
+          <label for="police-password">Password</label>
+          <div class="auth-input-wrapper">
+            <i class="fa-solid fa-lock auth-input-icon"></i>
+            <input type="password" id="police-password" class="auth-input" placeholder="Enter police authorization password" required>
+          </div>
+        </div>
+
+        <button type="submit" id="btn-submit-police" class="btn-auth-submit police">
+          <i class="fa-solid fa-user-shield"></i> Login to Police Dashboard
+        </button>
+
+        <div class="demo-credentials-box">
+          <strong>Demo Police Account:</strong><br>
+          Email/ID: <code>police@ksp.gov.in</code> (or <code>KA-POL-8841</code>) &bull; Password: <code>Police@2026!</code>
+          <div>
+            <button type="button" class="demo-fill-btn" onclick="fillDemo('police@ksp.gov.in', 'Police@2026!', 'police')">
+              <i class="fa-solid fa-wand-magic-sparkles"></i> Auto-fill Police Credentials
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <!-- Landing Footer -->
+  <footer class="landing-footer">
+    <div style="max-width: 900px; margin: 0 auto;">
+      <p style="font-weight: 600; color: var(--text-main); margin-bottom: 0.5rem;">
+        Integrated IoT & Edge-AI Acoustic Early Warning System for Human-Elephant Conflict Mitigation
+      </p>
+      <p>
+        Major Project Phase II &bull; Department of Artificial Intelligence & Machine Learning, Sri Sairam College of Engineering
+      </p>
+      <p style="font-size: 0.8rem; margin-top: 1rem; color: var(--text-dim);">
+        &copy; 2026 Government Wildlife Protection & Autonomous IoT Network &bull; In association with Karnataka Forest Department
+      </p>
+    </div>
+  </footer>
+
+  <!-- Client-side Logic for Tab Switching & Supabase Authentication -->
+  <script>
+    let currentSelectedRole = 'forest_officer';
+    const pendingNextUrl = '{{ next_url }}';
+
+    function selectRoleLogin(role) {
+      currentSelectedRole = role;
+      
+      // Update Tab Buttons
+      const tabOfficer = document.getElementById('tab-officer-btn');
+      const tabVillager = document.getElementById('tab-villager-btn');
+      const tabPolice = document.getElementById('tab-police-btn');
+      
+      tabOfficer.classList.remove('active');
+      tabVillager.classList.remove('active');
+      tabPolice.classList.remove('active');
+
+      const formOfficer = document.getElementById('form-forest-officer');
+      const formVillager = document.getElementById('form-villager');
+      const formPolice = document.getElementById('form-police');
+
+      formOfficer.style.display = 'none';
+      formVillager.style.display = 'none';
+      formPolice.style.display = 'none';
+
+      hideError();
+
+      if (role === 'forest_officer') {
+        tabOfficer.classList.add('active');
+        formOfficer.style.display = 'block';
+      } else if (role === 'villager') {
+        tabVillager.classList.add('active');
+        formVillager.style.display = 'block';
+      } else if (role === 'police') {
+        tabPolice.classList.add('active');
+        formPolice.style.display = 'block';
+      }
+
+      // Smooth scroll to role portal
+      const portal = document.getElementById('role-portal');
+      if (portal) {
+        portal.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+
+    function fillDemo(identifier, password, role) {
+      selectRoleLogin(role);
+      if (role === 'forest_officer') {
+        document.getElementById('officer-email').value = identifier;
+        document.getElementById('officer-password').value = password;
+      } else if (role === 'villager') {
+        document.getElementById('villager-identifier').value = identifier;
+        document.getElementById('villager-password').value = password;
+      } else if (role === 'police') {
+        document.getElementById('police-identifier').value = identifier;
+        document.getElementById('police-password').value = password;
+      }
+    }
+
+    function showError(msg) {
+      const errBox = document.getElementById('auth-error-alert');
+      const errText = document.getElementById('auth-error-text');
+      errText.textContent = msg;
+      errBox.style.display = 'flex';
+    }
+
+    function hideError() {
+      const errBox = document.getElementById('auth-error-alert');
+      errBox.style.display = 'none';
+    }
+
+    async function handleAuthSubmit(event, role) {
+      event.preventDefault();
+      hideError();
+
+      let identifier = '';
+      let password = '';
+      let submitBtn = null;
+
+      if (role === 'forest_officer') {
+        identifier = document.getElementById('officer-email').value.trim();
+        password = document.getElementById('officer-password').value;
+        submitBtn = document.getElementById('btn-submit-officer');
+      } else if (role === 'villager') {
+        identifier = document.getElementById('villager-identifier').value.trim();
+        password = document.getElementById('villager-password').value;
+        submitBtn = document.getElementById('btn-submit-villager');
+      } else if (role === 'police') {
+        identifier = document.getElementById('police-identifier').value.trim();
+        password = document.getElementById('police-password').value;
+        submitBtn = document.getElementById('btn-submit-police');
+      }
+
+      if (!identifier || !password) {
+        showError('Please enter both your identifier and password.');
+        return;
+      }
+
+      const originalBtnHtml = submitBtn.innerHTML;
+      submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Authenticating with Supabase...';
+      submitBtn.disabled = true;
+
+      try {
+        const payload = { identifier, password, role };
+        if (pendingNextUrl) {
+            payload.next = pendingNextUrl;
+        }
+        
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+          submitBtn.innerHTML = '<i class="fa-solid fa-check"></i> Verified! Redirecting...';
+          submitBtn.style.background = '#10b981';
+          setTimeout(() => {
+            window.location.href = data.redirect_url;
+          }, 400);
+        } else {
+          showError(data.error || 'Authentication rejected. Please check credentials or role authorization.');
+          submitBtn.innerHTML = originalBtnHtml;
+          submitBtn.disabled = false;
+        }
+      } catch (err) {
+        console.error('Login error:', err);
+        showError('Network error connecting to authentication server.');
+        submitBtn.innerHTML = originalBtnHtml;
+        submitBtn.disabled = false;
+      }
+    }
+
+    // Check URL hash or query params on load
+    window.addEventListener('DOMContentLoaded', () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const roleParam = urlParams.get('role');
+      if (roleParam && ['forest_officer', 'villager', 'police'].includes(roleParam)) {
+        selectRoleLogin(roleParam);
+      }
+    });
+  </script>
+</body>
+</html>

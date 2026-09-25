@@ -89,39 +89,82 @@ function initGISMap(nodes, herdInfo) {
     iconAnchor: [13, 13]
   });
 
+  const nodeOfflineIcon = L.divIcon({
+    className: 'custom-leaflet-icon',
+    html: `<div style="background: rgba(100, 116, 139, 0.85); border: 2px solid #cbd5e1; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #cbd5e1; font-size: 11px;"><i class="fa-solid fa-power-off"></i></div>`,
+    iconSize: [26, 26],
+    iconAnchor: [13, 13]
+  });
+
   // 1. Render ESP32 Sensor Nodes
   nodes.forEach(node => {
     const isAlert = node.status === 'ALERT';
-    const icon = isAlert ? nodeAlertIcon : nodeSafeIcon;
-    const marker = L.marker([node.lat, node.lng], { icon: icon }).addTo(leafletMap);
+    const isOffline = node.status === 'OFFLINE';
+    const icon = isAlert ? nodeAlertIcon : (isOffline ? nodeOfflineIcon : nodeSafeIcon);
+    const isNode1 = node.id === 'ESP32-NODE-01';
+    
+    const marker = L.marker([node.lat, node.lng], { 
+      icon: icon,
+      draggable: isNode1 
+    }).addTo(leafletMap);
     
     // Store node data in marker for dynamic updates
     marker.nodeData = node;
     
-    // Use node's actual GPS coordinates as single source of truth
-    const nodeCoords = {
-      latitude: node.lat,
-      longitude: node.lng
-    };
+    if (isNode1) {
+      updateNode1LiveHeader(node);
+      marker.on('dragend', (ev) => {
+        const newPos = ev.target.getLatLng();
+        console.log(`[MAP] Node 1 dragged to: ${newPos.lat}, ${newPos.lng}`);
+        updateNode1LiveCoordinates(newPos.lat, newPos.lng);
+      });
+    }
     
-    // Dynamic node name based on location for Node 1
-    const dynamicNodeName = node.id === 'ESP32-NODE-01' 
+    const dynamicNodeName = isNode1 
       ? `Node 1 - ${node.location}` 
       : node.name;
     
-    marker.bindPopup(`
+    const popupContent = isNode1 ? `
+      <div style="font-family: Inter, sans-serif; font-size: 12px; padding: 4px; min-width: 210px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+          <strong style="color: ${isAlert ? '#ef4444' : '#10b981'}; font-size: 14px;">${dynamicNodeName}</strong>
+          <span style="font-size: 10px; padding: 2px 6px; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.35); border-radius: 10px; font-weight: 700;">LIVE GPS</span>
+        </div>
+        <strong>Status:</strong> ${node.status}<br/>
+        <strong>Location:</strong> ${node.location}<br/>
+        <strong>Live Coordinates:</strong> <span style="color: #38bdf8; font-family: monospace; font-weight: bold;">${node.lat.toFixed(5)}° N, ${node.lng.toFixed(5)}° E</span><br/>
+        <strong>PIR:</strong> ${node.pir ? 'Detected' : 'Clear'}<br/>
+        <strong>Sound:</strong> ${node.acoustic_db} dB<br/>
+        <strong>Power Source:</strong> <span style="color: #10b981;"><i class="fa-solid fa-plug"></i> 5V DC / USB (Mains Continuous)</span><br/>
+        <div style="margin-top: 6px; font-size: 10px; color: #94a3b8; border-top: 1px dashed rgba(255,255,255,0.15); padding-top: 4px;">
+          <i class="fa-solid fa-arrows-up-down-left-right" style="color: #38bdf8;"></i> Drag marker or use 'Sync Live Device GPS' to update
+        </div>
+      </div>
+    ` : (isOffline ? `
+      <div style="font-family: Inter, sans-serif; font-size: 12px; padding: 4px; min-width: 190px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+          <strong style="color: #94a3b8; font-size: 14px;">${dynamicNodeName}</strong>
+          <span style="font-size: 10px; padding: 2px 6px; background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 10px; font-weight: 700;">OFFLINE</span>
+        </div>
+        <strong>Status:</strong> <span style="color: #94a3b8; font-weight: 600;">Disconnected</span><br/>
+        <strong>Location:</strong> ${node.location}<br/>
+        <strong>Coordinates:</strong> <span style="color: #64748b; font-family: monospace;">${node.lat.toFixed(5)}° N, ${node.lng.toFixed(5)}° E</span><br/>
+        <strong>Telemetry:</strong> <span style="color: #94a3b8; font-style: italic;">Awaiting ESP32 hardware transmission</span><br/>
+        <strong>Power:</strong> <span style="color: #94a3b8;">Disconnected</span>
+      </div>
+    ` : `
       <div style="font-family: Inter, sans-serif; font-size: 12px; padding: 4px;">
         <strong style="color: ${isAlert ? '#ef4444' : '#10b981'}; font-size: 14px;">${dynamicNodeName}</strong><br/>
         <strong>Status:</strong> ${node.status}<br/>
         <strong>Location:</strong> ${node.location}<br/>
-        <strong>Node 1 Position:</strong> ${nodeCoords.latitude.toFixed(4)}° N, ${nodeCoords.longitude.toFixed(4)}° E<br/>
+        <strong>Coordinates:</strong> <span style="color: #38bdf8; font-family: monospace;">${node.lat.toFixed(5)}° N, ${node.lng.toFixed(5)}° E</span><br/>
         <strong>PIR:</strong> ${node.pir ? 'Detected' : 'Clear'}<br/>
-        <strong>Sound:</strong> ${node.acoustic_db}<br/>
-        <strong>Sound Class:</strong> ${node.sound_class} (${node.confidence}%)<br/>
-        <strong>Battery/Solar:</strong> ${node.battery}% (${node.solar_v}V)
+        <strong>Sound:</strong> ${node.acoustic_db} dB<br/>
+        <strong>Power Source:</strong> <span style="color: #10b981;"><i class="fa-solid fa-plug"></i> 5V DC / USB</span>
       </div>
     `);
 
+    marker.bindPopup(popupContent);
     nodeMarkers.push(marker);
   });
 
@@ -158,7 +201,7 @@ function initGISMap(nodes, herdInfo) {
     }).addTo(leafletMap);
   }
 
-  // 3. Real-Time Cursor Tracking & Geotargeted Reverse Geocoding
+  // 3. Real-Time Cursor Tracking
   let reverseGeoTimer = null;
 
   leafletMap.on('mousemove', (e) => {
@@ -167,43 +210,23 @@ function initGISMap(nodes, herdInfo) {
     const numLat = e.latlng.lat;
     const numLng = e.latlng.lng;
 
-    // 1. Instantaneous Regional Location Finder (0ms latency)
+    // Instantaneous Regional Location Finder (0ms latency)
     const instantLocation = getInstantRegionName(numLat, numLng);
 
-    // Update Main Title Line (Location Name ONLY - No repeated Lat/Lng)
-    const titleTextEl = document.getElementById('map-title-text');
-    if (titleTextEl) {
-      titleTextEl.innerHTML = `Location: <strong style="color: #10b981;">${instantLocation}</strong>`;
-    }
-
-    // Keep Lat & Lng in the controls bar below
+    // Keep Lat & Lng in the inspection bar below
     const coordEl = document.getElementById('live-cursor-coordinates');
     if (coordEl) {
-      coordEl.innerHTML = `<i class="fa-solid fa-location-crosshairs" style="color: #10b981;"></i> <strong>Cursor Position:</strong> ${lat}° N, ${lng}° E &nbsp;(<span style="color: #6ee7b7;">${instantLocation}</span>)`;
+      coordEl.innerHTML = `<i class="fa-solid fa-location-crosshairs" style="color: #10b981;"></i> <strong>Cursor:</strong> ${lat}° N, ${lng}° E &nbsp;(<span style="color: #6ee7b7;">${instantLocation}</span>)`;
     }
 
-    const headerTag = document.getElementById('map-location-tag');
-    if (headerTag) {
-      headerTag.textContent = `${lat}° N, ${lng}° E`;
-    }
-
-    // 3. Keep popups showing actual node GPS coordinates (NOT cursor position)
-    // Cursor position is shown separately in the header
-    // Node coordinates remain as the single source of truth from ESP32
-
-    // 4. Debounced Exact Reverse Geocoding API for exact village/town/district precision anywhere in the world
     if (reverseGeoTimer) clearTimeout(reverseGeoTimer);
     reverseGeoTimer = setTimeout(() => {
-      fetchReverseGeocode(numLat, numLng, titleTextEl, coordEl);
+      fetchReverseGeocode(numLat, numLng, null, coordEl);
     }, 300);
   });
 
   leafletMap.on('mouseout', () => {
     if (reverseGeoTimer) clearTimeout(reverseGeoTimer);
-    const titleTextEl = document.getElementById('map-title-text');
-    if (titleTextEl) {
-      titleTextEl.textContent = 'Bannerghatta National Park - Live Elephant Trajectory GIS Map';
-    }
   });
 }
 
@@ -219,17 +242,13 @@ function fetchReverseGeocode(lat, lng, titleEl, coordEl) {
       const state = addr.state || addr.country || '';
       const fullName = place && state ? `${place}, ${state}` : (data.display_name.split(',').slice(0, 2).join(','));
 
-      if (titleEl && fullName) {
-        titleEl.innerHTML = `Location: <strong style="color: #10b981;">${fullName}</strong>`;
-      }
       if (coordEl && fullName) {
-        coordEl.innerHTML = `<i class="fa-solid fa-location-crosshairs" style="color: #10b981;"></i> <strong>Cursor Position:</strong> ${lat.toFixed(4)}° N, ${lng.toFixed(4)}° E &nbsp;(<span style="color: #6ee7b7;">${fullName}</span>)`;
+        coordEl.innerHTML = `<i class="fa-solid fa-location-crosshairs" style="color: #10b981;"></i> <strong>Cursor:</strong> ${lat.toFixed(4)}° N, ${lng.toFixed(4)}° E &nbsp;(<span style="color: #6ee7b7;">${fullName}</span>)`;
       }
-      // Popups remain showing actual node GPS coordinates, not cursor position
     }
   })
   .catch(() => {
-    // Fallback gracefully to instant region calculation if offline or rate limited
+    // Fallback gracefully
   });
 }
 
@@ -241,6 +260,11 @@ function getInstantRegionName(lat, lng) {
   if (Math.hypot(lat - 12.7180, lng - 77.5840) < 0.015) return "Ragihalli Village (Bengaluru Urban, KA)";
   if (Math.hypot(lat - 12.6100, lng - 77.7100) < 0.015) return "Thammanayakanahalli (Anekal Area, Bengaluru Urban, KA)";
   if (Math.hypot(lat - 12.5400, lng - 77.7800) < 0.015) return "Kadusivanapalli (Jawalagiri Area, Krishnagiri, TN)";
+
+  // Specific Taluk & Area Mappings
+  if (lat >= 12.88 && lat <= 13.05 && lng >= 77.85 && lng <= 78.10) return "Maluru taluk, Karnataka";
+  if (lat >= 13.00 && lat <= 13.25 && lng >= 78.00 && lng <= 78.30) return "Kolar, Karnataka";
+  if (lat >= 13.00 && lat <= 13.15 && lng >= 77.75 && lng <= 77.95) return "Hoskote, Bengaluru Rural, Karnataka";
 
   // 2. TAMIL NADU STATE REGIONS (Exact Geofencing)
   if (lat >= 12.65 && lng >= 77.72 && lng <= 78.10) return "Hosur Sector, Krishnagiri District, Tamil Nadu";
@@ -267,7 +291,7 @@ function getInstantRegionName(lat, lng) {
   if (lat >= 13.10 && lng >= 78.30) return "Chittoor District, Andhra Pradesh";
   if (lat >= 8.50 && lat < 12.80 && lng >= 74.80 && lng < 77.20) return "Kerala State Region";
 
-  return `Coordinates: ${lat.toFixed(2)}°, ${lng.toFixed(2)}°`;
+  return `Coordinates: ${lat.toFixed(4)}°, ${lng.toFixed(4)}°`;
 }
 
 function filterMap(category) {
@@ -312,46 +336,82 @@ function updateMapNodes(nodes, herdInfo) {
     iconAnchor: [13, 13]
   });
 
+  const nodeOfflineIcon = L.divIcon({
+    className: 'custom-leaflet-icon',
+    html: `<div style="background: rgba(100, 116, 139, 0.85); border: 2px solid #cbd5e1; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #cbd5e1; font-size: 11px;"><i class="fa-solid fa-power-off"></i></div>`,
+    iconSize: [26, 26],
+    iconAnchor: [13, 13]
+  });
+
   // Clear previous dynamic risk circles
   riskCircles.forEach(c => leafletMap.removeLayer(c));
   riskCircles = [];
 
   let alertNodeFound = null;
 
+  const node1 = nodes.find(n => n.id === 'ESP32-NODE-01');
+  if (node1) {
+    updateNode1LiveHeader(node1);
+  }
+
   nodes.forEach((node, index) => {
     const isAlert = node.status === 'ALERT';
+    const isOffline = node.status === 'OFFLINE';
+    const isNode1 = node.id === 'ESP32-NODE-01';
     if (isAlert) alertNodeFound = node;
 
     // Match marker by array index or node ID
     const marker = nodeMarkers[index];
     if (marker) {
       marker.setLatLng([node.lat, node.lng]);
-      marker.setIcon(isAlert ? nodeAlertIcon : nodeSafeIcon);
+      marker.setIcon(isAlert ? nodeAlertIcon : (isOffline ? nodeOfflineIcon : nodeSafeIcon));
       marker.nodeData = node; // Update node data reference
       
-      // Use node's actual GPS coordinates as single source of truth
-      const nodeCoords = {
-        latitude: node.lat,
-        longitude: node.lng
-      };
-      
-      // Dynamic node name based on location for Node 1
-      const dynamicNodeName = node.id === 'ESP32-NODE-01' 
+      const dynamicNodeName = isNode1 
         ? `Node 1 - ${node.location}` 
         : node.name;
       
-      marker.setPopupContent(`
+      const popupContent = isNode1 ? `
+        <div style="font-family: Inter, sans-serif; font-size: 12px; padding: 4px; min-width: 210px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+            <strong style="color: ${isAlert ? '#ef4444' : '#10b981'}; font-size: 14px;">${dynamicNodeName}</strong>
+            <span style="font-size: 10px; padding: 2px 6px; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.35); border-radius: 10px; font-weight: 700;">LIVE GPS</span>
+          </div>
+          <strong>Status:</strong> ${isAlert ? '🚨 CRITICAL ELEPHANT INTRUSION' : 'SAFE / MONITORING'}<br/>
+          <strong>Location:</strong> ${node.location}<br/>
+          <strong>Live Coordinates:</strong> <span style="color: #38bdf8; font-family: monospace; font-weight: bold;">${node.lat.toFixed(5)}° N, ${node.lng.toFixed(5)}° E</span><br/>
+          <strong>PIR:</strong> ${node.pir ? 'Detected' : 'Clear'}<br/>
+          <strong>Sound:</strong> ${node.acoustic_db} dB<br/>
+          <strong>Power Source:</strong> <span style="color: #10b981;"><i class="fa-solid fa-plug"></i> 5V DC / USB (Mains Continuous)</span><br/>
+          <div style="margin-top: 6px; font-size: 10px; color: #94a3b8; border-top: 1px dashed rgba(255,255,255,0.15); padding-top: 4px;">
+            <i class="fa-solid fa-arrows-up-down-left-right" style="color: #38bdf8;"></i> Drag marker or use 'Sync Live Device GPS' to update
+          </div>
+        </div>
+      ` : (isOffline ? `
+        <div style="font-family: Inter, sans-serif; font-size: 12px; padding: 4px; min-width: 190px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+            <strong style="color: #94a3b8; font-size: 14px;">${dynamicNodeName}</strong>
+            <span style="font-size: 10px; padding: 2px 6px; background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 10px; font-weight: 700;">OFFLINE</span>
+          </div>
+          <strong>Status:</strong> <span style="color: #94a3b8; font-weight: 600;">Disconnected</span><br/>
+          <strong>Location:</strong> ${node.location}<br/>
+          <strong>Coordinates:</strong> <span style="color: #64748b; font-family: monospace;">${node.lat.toFixed(5)}° N, ${node.lng.toFixed(5)}° E</span><br/>
+          <strong>Telemetry:</strong> <span style="color: #94a3b8; font-style: italic;">Awaiting ESP32 hardware transmission</span><br/>
+          <strong>Power:</strong> <span style="color: #94a3b8;">Disconnected</span>
+        </div>
+      ` : `
         <div style="font-family: Inter, sans-serif; font-size: 12px; padding: 4px;">
           <strong style="color: ${isAlert ? '#ef4444' : '#10b981'}; font-size: 14px;">${dynamicNodeName}</strong><br/>
           <strong>Status:</strong> ${isAlert ? '🚨 CRITICAL ELEPHANT INTRUSION' : 'SAFE / MONITORING'}<br/>
           <strong>Location:</strong> ${node.location}<br/>
-          <strong>Node 1 Position:</strong> ${nodeCoords.latitude.toFixed(4)}° N, ${nodeCoords.longitude.toFixed(4)}° E<br/>
+          <strong>Coordinates:</strong> <span style="color: #38bdf8; font-family: monospace;">${node.lat.toFixed(5)}° N, ${node.lng.toFixed(5)}° E</span><br/>
           <strong>PIR:</strong> ${node.pir ? 'Detected' : 'Clear'}<br/>
-          <strong>Sound:</strong> ${node.acoustic_db}<br/>
-          <strong>Sound Class:</strong> ${node.sound_class} (${node.confidence}%)<br/>
-          <strong>Battery/Solar:</strong> ${node.battery}% (${node.solar_v}V)
+          <strong>Sound:</strong> ${node.acoustic_db} dB<br/>
+          <strong>Power Source:</strong> <span style="color: #10b981;"><i class="fa-solid fa-plug"></i> 5V DC / USB</span>
         </div>
       `);
+
+      marker.setPopupContent(popupContent);
     }
 
     if (isAlert) {
@@ -378,5 +438,77 @@ function updateMapNodes(nodes, herdInfo) {
   } else if (!alertNodeFound) {
     lastAlertedMapNodeId = null;
   }
+}
+
+// -------------------------------------------------------------
+// Live GPS Tracking & Dynamic Telemetry Controllers for Node 1
+// -------------------------------------------------------------
+
+function updateNode1LiveHeader(node1) {
+  if (!node1) return;
+  const latEl = document.getElementById('node1-latlng-text');
+  const locEl = document.getElementById('node1-location-name');
+  const tagEl = document.getElementById('node1-header-tag');
+  const typeEl = document.getElementById('node1-location-type-label');
+  
+  const isLive = (node1.gps_fix === true) || (node1.location_type === 'LIVE LOCATION');
+  const hasCoords = node1.lat != null && node1.lng != null && !isNaN(node1.lat) && !isNaN(node1.lng) && (Math.abs(node1.lat) > 0.1);
+  
+  if (typeEl) {
+    if (isLive) {
+      typeEl.textContent = 'NODE 1 LIVE GPS';
+      typeEl.parentElement.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+      typeEl.parentElement.style.color = '#10b981';
+      typeEl.parentElement.style.background = 'rgba(16, 185, 129, 0.12)';
+    } else if (hasCoords) {
+      typeEl.textContent = 'LAST KNOWN LOCATION';
+      typeEl.parentElement.style.borderColor = 'rgba(245, 158, 11, 0.4)';
+      typeEl.parentElement.style.color = '#f59e0b';
+      typeEl.parentElement.style.background = 'rgba(245, 158, 11, 0.12)';
+    } else {
+      typeEl.textContent = 'NO GPS FIX';
+      typeEl.parentElement.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+      typeEl.parentElement.style.color = '#ef4444';
+      typeEl.parentElement.style.background = 'rgba(239, 68, 68, 0.12)';
+    }
+  }
+
+  if (hasCoords) {
+    const latStr = `${Number(node1.lat).toFixed(5)}° N`;
+    const lngStr = `${Number(node1.lng).toFixed(5)}° E`;
+    if (latEl) latEl.textContent = `${latStr}, ${lngStr}`;
+    if (locEl) locEl.textContent = node1.location || (isLive ? 'Live Hardware GPS' : 'Last Known Location');
+    if (tagEl) tagEl.textContent = `Node 1: ${node1.location || (isLive ? 'Live Hardware GPS' : 'Last Known Location')}`;
+  } else {
+    if (latEl) latEl.textContent = 'Unavailable (Searching...)';
+    if (locEl) locEl.textContent = 'Awaiting GPS Fix';
+    if (tagEl) tagEl.textContent = 'Node 1: Awaiting GPS Fix';
+  }
+}
+
+function updateNode1LiveCoordinates(lat, lng, locationName) {
+  fetch('/api/nodes/ESP32-NODE-01/location', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      lat: lat,
+      lng: lng,
+      location: locationName || undefined
+    })
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data && data.node) {
+      updateNode1LiveHeader(data.node);
+      const node1Marker = nodeMarkers.find(m => m.nodeData && m.nodeData.id === 'ESP32-NODE-01') || nodeMarkers[0];
+      if (node1Marker) {
+        node1Marker.setLatLng([data.node.lat, data.node.lng]);
+      }
+      if (typeof fetchStatusAndNodes === 'function') {
+        fetchStatusAndNodes();
+      }
+    }
+  })
+  .catch(err => console.error("Error updating Node 1 location:", err));
 }
 

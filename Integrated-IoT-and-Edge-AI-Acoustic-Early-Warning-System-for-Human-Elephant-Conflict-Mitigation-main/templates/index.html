@@ -20,12 +20,13 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <!-- App Main CSS -->
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=2">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/camera_detection.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/alerts.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/sensor_monitoring.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/role_dashboards.css') }}">
 </head>
-<body>
+<body data-active-tab="{{ active_tab|default('map-tab') }}">
 
   <!-- Strobe Light Simulator Overlay -->
   <div id="strobe-overlay" class="strobe-overlay"></div>
@@ -49,8 +50,17 @@
 
       <div class="status-pill">
         <i class="fa-solid fa-tower-cell" style="color: #10b981;"></i>
-        <span>LoRa Mesh: 6/6 Online</span>
+        <span id="mesh-node-count">LoRa Mesh: 1/2 Online</span>
       </div>
+
+      <div class="status-pill" style="border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.12);">
+        <i class="fa-solid fa-tree" style="color: #10b981;"></i>
+        <span>Officer: {{ user_name | default('Ranger Rajesh Kumar', true) }}</span>
+      </div>
+
+      <button onclick="handleLogout()" style="padding: 0.38rem 0.85rem; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: #ef4444; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 700; display: inline-flex; align-items: center; gap: 0.4rem; transition: all 0.2s;" onmouseover="this.style.background='#ef4444';this.style.color='#fff';" onmouseout="this.style.background='rgba(239, 68, 68, 0.15)';this.style.color='#ef4444';">
+        <i class="fa-solid fa-right-from-bracket"></i> Sign Out
+      </button>
     </div>
   </header>
 
@@ -71,6 +81,9 @@
     <button class="nav-tab" onclick="switchTab('alerts-tab')">
       <i class="fa-solid fa-bell"></i> Alert Management
     </button>
+    <button class="nav-tab" onclick="switchTab('user-mgmt-tab'); if(typeof initUserManagement === 'function') initUserManagement();">
+      <i class="fa-solid fa-users-gear"></i> User Management
+    </button>
   </nav>
 
   <!-- Main Container -->
@@ -85,14 +98,41 @@
           
           <!-- GIS Map Card -->
           <div class="glass-card">
-            <div class="card-header">
-              <h2><i class="fa-solid fa-earth-asia" style="color: #10b981;"></i> <span id="map-title-text">Bannerghatta National Park - Live Elephant Trajectory GIS Map</span></h2>
-              <span class="header-tag" id="map-location-tag">GPS Live Telemetry</span>
+            <div class="card-header" style="flex-wrap: wrap; gap: 0.5rem;">
+              <h2><i class="fa-solid fa-earth-asia" style="color: #10b981;"></i> <span id="map-title-text">Live Wildlife Corridor GIS Map</span></h2>
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span class="header-tag" id="map-location-tag" style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); color: #10b981;">
+                  <span class="dot-indicator active-pulse" style="background: #10b981; width: 6px; height: 6px; display: inline-block; border-radius: 50%; margin-right: 4px;"></span>
+                  <span id="node1-header-tag">Node 1: Real-Time Telemetry</span>
+                </span>
+              </div>
+            </div>
+
+            <!-- Node 1 Real-Time Live Location Telemetry Banner -->
+            <div id="node1-live-banner" style="background: rgba(15, 23, 42, 0.75); border: 1px solid rgba(16, 185, 129, 0.35); border-radius: 8px; padding: 0.65rem 0.9rem; margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.6rem;">
+              <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
+                <span style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.76rem; font-weight: 700; color: #10b981; background: rgba(16, 185, 129, 0.12); padding: 0.2rem 0.55rem; border-radius: 20px; border: 1px solid rgba(16, 185, 129, 0.3);">
+                  <span class="dot-indicator active-pulse" style="background: #10b981; width: 6px; height: 6px; border-radius: 50%;"></span>
+                  <span id="node1-location-type-label">NODE 1 LIVE GPS</span>
+                </span>
+                <div style="font-size: 0.85rem; color: #f1f5f9; display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;" id="node1-coordinates-display">
+                  <i class="fa-solid fa-location-dot" style="color: #10b981;"></i>
+                  <strong style="color: #94a3b8;">Position:</strong>
+                  <span id="node1-latlng-text" style="color: #38bdf8; font-family: monospace; font-weight: 600;">Awaiting GPS Fix...</span>
+                  <span style="color: #64748b;">•</span>
+                  <span id="node1-location-name" style="color: #6ee7b7; font-weight: 500;">Hardware GPS Module</span>
+                </div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap;">
+                <span style="font-size: 0.74rem; color: #94a3b8; padding: 0.3rem 0.6rem; background: rgba(30, 41, 59, 0.6); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 6px;">
+                  <i class="fa-solid fa-satellite" style="color: #38bdf8;"></i> TinyGPS++ Hardware Only
+                </span>
+              </div>
             </div>
 
             <div class="map-controls-bar" style="justify-content: space-between; gap: 0.5rem; flex-wrap: wrap;">
-              <div style="font-size: 0.82rem; color: var(--accent-cyan); display: flex; align-items: center; gap: 0.4rem;" id="live-cursor-coordinates">
-                <i class="fa-solid fa-location-crosshairs" style="color: #10b981;"></i> <span>Move cursor on map to inspect location...</span>
+              <div style="font-size: 0.8rem; color: var(--accent-cyan); display: flex; align-items: center; gap: 0.4rem;" id="live-cursor-coordinates">
+                <i class="fa-solid fa-location-crosshairs" style="color: #10b981;"></i> <span>Move cursor on map to inspect coordinates...</span>
               </div>
             </div>
 
@@ -112,27 +152,33 @@
             <div class="deterrent-controls">
               
               <!-- Bio Acoustic Card -->
-              <div class="deterrent-card active" id="card-bio">
+              <div class="deterrent-card" id="card-bio">
                 <div class="deterrent-icon">
                   <i class="fa-solid fa-volume-high"></i>
                 </div>
                 <div style="font-weight: 600; font-size: 0.88rem;">Bio-Acoustic Speaker</div>
                 <div style="font-size: 0.72rem; color: var(--text-muted);">Predator Warning Sound</div>
+                <div style="margin-top: 0.2rem;">
+                  <span id="status-bio" class="node-badge safe">STANDBY</span>
+                </div>
                 <label class="toggle-switch" style="margin-top: 0.3rem;">
-                  <input type="checkbox" id="toggle-bio" checked onchange="toggleDeterrent('bio_acoustic')">
+                  <input type="checkbox" id="toggle-bio">
                   <span class="slider"></span>
                 </label>
               </div>
 
               <!-- Strobe Light Card -->
-              <div class="deterrent-card active" id="card-strobe">
+              <div class="deterrent-card" id="card-strobe">
                 <div class="deterrent-icon">
                   <i class="fa-solid fa-lightbulb"></i>
                 </div>
                 <div style="font-weight: 600; font-size: 0.88rem;">LED Strobe Lights</div>
-                <div style="font-size: 0.72rem; color: var(--text-muted);">High-Intensity Flashing</div>
+                <div style="font-size: 0.72rem; color: var(--text-muted);">Manual Control Only</div>
+                <div style="margin-top: 0.2rem;">
+                  <span id="status-strobe" class="node-badge safe">STANDBY</span>
+                </div>
                 <label class="toggle-switch" style="margin-top: 0.3rem;">
-                  <input type="checkbox" id="toggle-strobe" checked onchange="toggleDeterrent('strobe_light')">
+                  <input type="checkbox" id="toggle-strobe" onchange="toggleDeterrent('strobe_light')">
                   <span class="slider"></span>
                 </label>
               </div>
@@ -144,8 +190,11 @@
                 </div>
                 <div style="font-weight: 600; font-size: 0.88rem;">High-Decibel Siren</div>
                 <div style="font-size: 0.72rem; color: var(--text-muted);">110 Acoustic Siren</div>
+                <div style="margin-top: 0.2rem;">
+                  <span id="status-siren" class="node-badge safe">STANDBY</span>
+                </div>
                 <label class="toggle-switch" style="margin-top: 0.3rem;">
-                  <input type="checkbox" id="toggle-siren" onchange="toggleDeterrent('siren')">
+                  <input type="checkbox" id="toggle-siren">
                   <span class="slider"></span>
                 </label>
               </div>
@@ -185,7 +234,7 @@
 
               <div class="metric-box">
                 <div class="metric-label">Active Field Sensor Mesh</div>
-                <div class="metric-value highlight"><i class="fa-solid fa-tower-broadcast"></i> 6 Nodes Online (LoRa)</div>
+                <div class="metric-value highlight" id="active-mesh-nodes"><i class="fa-solid fa-tower-broadcast"></i> 2 Nodes Online (LoRa)</div>
               </div>
 
               <div class="metric-box">
@@ -213,7 +262,7 @@
         </div>
         
         <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.25rem;">
-          Each field node integrates a PIR motion sensor, acoustic microphone, ground vibration sensor, GPS module, temperature/humidity sensor, and solar battery charging unit. Data is processed locally by Edge-AI before transmitting to MakeAcademy Cloud.
+          Each field node integrates a PIR motion sensor, acoustic microphone, ground vibration sensor, GPS module, and temperature/humidity sensor. Data is processed locally by Edge-AI before transmitting to Supabase.
         </p>
 
         <div id="nodes-container" class="nodes-grid">
@@ -224,6 +273,28 @@
 
     <!-- TAB 3: Sensor Monitoring -->
     <div id="sensor-monitoring-tab" class="tab-pane">
+      <!-- Target Field Node Selector -->
+      <div style="margin-bottom: 1.25rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem; background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 0.75rem 1.25rem;">
+        <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+          <span style="font-weight: 600; font-size: 0.88rem; color: #94a3b8; display: flex; align-items: center; gap: 0.4rem;">
+            <i class="fa-solid fa-server" style="color: #38bdf8;"></i> Select Sensor Field Node:
+          </span>
+          <div style="display: flex; gap: 0.5rem;" id="monitoring-node-switch-group">
+            <button id="mon-btn-node-1" class="monitoring-node-btn active" onclick="switchMonitoringNode('ESP32-NODE-01')" style="padding: 0.45rem 1rem; border-radius: 8px; font-size: 0.84rem; font-weight: 600; cursor: pointer; border: 1px solid #10b981; background: rgba(16, 185, 129, 0.2); color: #10b981; transition: all 0.2s;">
+              <i class="fa-solid fa-microchip"></i> Node 1 - Buthanahalli (Active)
+            </button>
+            <button id="mon-btn-node-2" class="monitoring-node-btn" onclick="switchMonitoringNode('ESP32-NODE-02')" style="padding: 0.45rem 1rem; border-radius: 8px; font-size: 0.84rem; font-weight: 600; cursor: pointer; border: 1px solid rgba(148, 163, 184, 0.25); background: rgba(148, 163, 184, 0.08); color: #94a3b8; transition: all 0.2s;">
+              <i class="fa-solid fa-microchip"></i> Node 2 - Begihalli
+            </button>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.6rem;">
+          <span id="selected-node-indicator" style="font-size: 0.78rem; padding: 4px 12px; border-radius: 20px; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); font-weight: 600;">
+            <i class="fa-solid fa-satellite-dish"></i> ESP32-NODE-01 (Buthanahalli)
+          </span>
+        </div>
+      </div>
+
       <div class="sensor-monitoring-grid">
         
         <!-- Left: Sensor Status Cards -->
@@ -339,8 +410,8 @@
                 
                 <!-- Date Range -->
                 <div class="date-range-inputs">
-                  <input type="datetime-local" id="from-date" class="date-input" placeholder="dd-mm-yyyy --:--">
-                  <input type="datetime-local" id="to-date" class="date-input" placeholder="dd-mm-yyyy --:--">
+                  <input type="date" id="from-date" class="date-input" onclick="try{this.showPicker()}catch(e){}">
+                  <input type="date" id="to-date" class="date-input" onclick="try{this.showPicker()}catch(e){}">
                 </div>
                 
                 <!-- Last N Points -->
@@ -405,8 +476,8 @@
             <!-- Raw Data Controls -->
             <div class="raw-data-controls">
               <div class="raw-data-filters">
-                <div class="date-picker-wrapper">
-                  <input type="date" id="raw-data-date" class="date-input">
+                <div class="date-picker-wrapper" onclick="const d=document.getElementById('raw-data-date');if(d){try{d.showPicker()}catch(e){d.focus()}}">
+                  <input type="date" id="raw-data-date" class="date-input" onclick="try{this.showPicker()}catch(e){}">
                   <i class="fa-solid fa-calendar"></i>
                 </div>
                 <button class="raw-data-btn search-btn" onclick="searchRawData()">
@@ -548,7 +619,7 @@
                 <button class="action-btn" onclick="refreshCameraTab()">
                   <i class="fa-solid fa-sync"></i> Refresh
                 </button>
-                <a href="/api/detections/download" class="action-btn" download>
+                <a href="/api/supabase/detections/csv" class="action-btn" download>
                   <i class="fa-solid fa-download"></i> Download CSV
                 </a>
               </div>
@@ -624,14 +695,16 @@
                 <thead>
                   <tr>
                     <th>Time</th>
-                    <th>Count</th>
-                    <th>Confidence</th>
-                    <th>Web Push Status</th>
+                    <th>Type</th>
+                    <th>Trigger</th>
+                    <th>Location</th>
+                    <th>Camera Status</th>
+                    <th>Notification</th>
                   </tr>
                 </thead>
                 <tbody id="alerts-table-body">
                   <tr>
-                    <td colspan="4" style="text-align: center; padding: 2rem; color: var(--text-muted);">
+                    <td colspan="6" style="text-align: center; padding: 2rem; color: var(--text-muted);">
                       <i class="fa-solid fa-circle-info" style="font-size: 1.5rem; margin-bottom: 0.5rem; color: var(--text-dim);"></i>
                       <p style="font-weight: 600;">Loading alert history...</p>
                     </td>
@@ -650,9 +723,15 @@
             <div class="status-list">
               <div class="status-row">
                 <div class="status-label">
-                  <i class="fa-solid fa-circle-notch"></i> Current State
+                  <i class="fa-solid fa-circle-notch"></i> Elephant Detection State
                 </div>
                 <div class="status-value" id="alert-state-val">NO_DETECTION</div>
+              </div>
+              <div class="status-row">
+                <div class="status-label">
+                  <i class="fa-solid fa-eye"></i> Activity Detection State
+                </div>
+                <div class="status-value" id="activity-state-val">IDLE</div>
               </div>
               <div class="status-row">
                 <div class="status-label">
@@ -668,9 +747,15 @@
               </div>
               <div class="status-row">
                 <div class="status-label">
-                  <i class="fa-solid fa-clock"></i> Time Since Last Alert
+                  <i class="fa-solid fa-clock"></i> Time Since Last Elephant Alert
                 </div>
                 <div class="status-value" id="alert-time-val">N/A</div>
+              </div>
+              <div class="status-row">
+                <div class="status-label">
+                  <i class="fa-solid fa-clock"></i> Time Since Last Activity
+                </div>
+                <div class="status-value" id="activity-time-val">N/A</div>
               </div>
             </div>
           </div>
@@ -717,9 +802,6 @@
                 <label>Alert Cooldown:</label>
                 <span id="config-cooldown">300 seconds</span>
               </div>
-              <button class="action-btn" onclick="resetAlertCooldown()">
-                Reset Cooldown (Test)
-              </button>
             </div>
           </div>
 
@@ -727,9 +809,183 @@
       </div>
     </div>
 
-    </div>
+    <!-- TAB 6: Forest Officer User Management -->
+    <div id="user-mgmt-tab" class="tab-pane">
+      
+      <!-- Top KPI Row for User Directory -->
+      <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem; margin-bottom: 1.25rem;">
+        <div class="glass-card" style="padding: 1rem; display: flex; align-items: center; justify-content: space-between;">
+          <div>
+            <div style="font-size: 1.5rem; font-weight: 800; font-family: var(--font-title); color: #fff;" id="kpi-total-users">0</div>
+            <div style="font-size: 0.76rem; color: var(--text-dim); text-transform: uppercase; font-weight: 700;">Total Users</div>
+          </div>
+          <div style="width: 38px; height: 38px; border-radius: 6px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; display: flex; align-items: center; justify-content: center;">
+            <i class="fa-solid fa-users"></i>
+          </div>
+        </div>
 
-  </main>
+        <div class="glass-card" style="padding: 1rem; display: flex; align-items: center; justify-content: space-between;">
+          <div>
+            <div style="font-size: 1.5rem; font-weight: 800; font-family: var(--font-title); color: #10b981;" id="kpi-active-users">0</div>
+            <div style="font-size: 0.76rem; color: var(--text-dim); text-transform: uppercase; font-weight: 700;">Active Accounts</div>
+          </div>
+          <div style="width: 38px; height: 38px; border-radius: 6px; background: rgba(16, 185, 129, 0.15); color: #10b981; display: flex; align-items: center; justify-content: center;">
+            <i class="fa-solid fa-circle-check"></i>
+          </div>
+        </div>
+
+        <div class="glass-card" style="padding: 1rem; display: flex; align-items: center; justify-content: space-between;">
+          <div>
+            <div style="font-size: 1.5rem; font-weight: 800; font-family: var(--font-title); color: #f59e0b;" id="kpi-villagers-count">0</div>
+            <div style="font-size: 0.76rem; color: var(--text-dim); text-transform: uppercase; font-weight: 700;">Villagers</div>
+          </div>
+          <div style="width: 38px; height: 38px; border-radius: 6px; background: rgba(245, 158, 11, 0.15); color: #f59e0b; display: flex; align-items: center; justify-content: center;">
+            <i class="fa-solid fa-house"></i>
+          </div>
+        </div>
+
+        <div class="glass-card" style="padding: 1rem; display: flex; align-items: center; justify-content: space-between;">
+          <div>
+            <div style="font-size: 1.5rem; font-weight: 800; font-family: var(--font-title); color: #38bdf8;" id="kpi-police-count">0</div>
+            <div style="font-size: 0.76rem; color: var(--text-dim); text-transform: uppercase; font-weight: 700;">Police Units</div>
+          </div>
+          <div style="width: 38px; height: 38px; border-radius: 6px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; display: flex; align-items: center; justify-content: center;">
+            <i class="fa-solid fa-shield"></i>
+          </div>
+        </div>
+
+        <div class="glass-card" style="padding: 1rem; display: flex; align-items: center; justify-content: space-between;">
+          <div>
+            <div style="font-size: 1.5rem; font-weight: 800; font-family: var(--font-title); color: #10b981;" id="kpi-officers-count">0</div>
+            <div style="font-size: 0.76rem; color: var(--text-dim); text-transform: uppercase; font-weight: 700;">Forest Officers</div>
+          </div>
+          <div style="width: 38px; height: 38px; border-radius: 6px; background: rgba(16, 185, 129, 0.15); color: #10b981; display: flex; align-items: center; justify-content: center;">
+            <i class="fa-solid fa-tree"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Layout: Form (Left) & Directory Table (Right) -->
+      <div class="user-mgmt-layout">
+
+        <!-- Left: Create User Form Card -->
+        <div class="glass-card" style="align-self: start;">
+          <div class="card-header">
+            <h2><i class="fa-solid fa-user-plus" style="color: #10b981;"></i> Create System User</h2>
+            <span class="header-tag" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);">
+              Admin Level
+            </span>
+          </div>
+
+          <div id="create-user-feedback" class="user-feedback-banner"></div>
+
+          <form id="create-user-form" onsubmit="handleCreateUser(event)" style="display: flex; flex-direction: column; gap: 1rem; margin-top: 0.5rem;">
+            <div>
+              <label style="display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-main); margin-bottom: 0.35rem;">
+                Full Name <span style="color: #ef4444;">*</span>
+              </label>
+              <input type="text" id="new-user-fullname" class="auth-input" style="padding-left: 1rem;" placeholder="e.g. Ramesh Gowda" required>
+            </div>
+
+            <div>
+              <label style="display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-main); margin-bottom: 0.35rem;">
+                Email Address <span style="color: #ef4444;">*</span>
+              </label>
+              <input type="email" id="new-user-email" class="auth-input" style="padding-left: 1rem;" placeholder="e.g. ramesh@anekal.gov.in" required>
+            </div>
+
+            <div>
+              <label style="display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-main); margin-bottom: 0.35rem;">
+                Phone Number
+              </label>
+              <input type="text" id="new-user-phone" class="auth-input" style="padding-left: 1rem;" placeholder="e.g. +919876543210">
+            </div>
+
+            <div>
+              <label style="display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-main); margin-bottom: 0.35rem;">
+                Role Assignment <span style="color: #ef4444;">*</span>
+              </label>
+              <select id="new-user-role" class="auth-input" style="padding-left: 1rem; cursor: pointer;" required>
+                <option value="villager">🏠 Villager (Safety Portal)</option>
+                <option value="police">👮 Police (Incident Response & Patrol)</option>
+                <option value="forest_officer">🌲 Forest Officer (Administrator)</option>
+              </select>
+            </div>
+
+            <div>
+              <label style="display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-main); margin-bottom: 0.35rem;">
+                Location / Area Sector <span style="color: #ef4444;">*</span>
+              </label>
+              <input type="text" id="new-user-location" class="auth-input" style="padding-left: 1rem;" placeholder="e.g. Buthanahalli Border Zone 1" required>
+            </div>
+
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                <label style="font-size: 0.82rem; font-weight: 600; color: var(--text-main);">
+                  Temporary Password <span style="color: #ef4444;">*</span>
+                </label>
+                <button type="button" onclick="generateTemporaryPassword()" style="background: none; border: none; color: var(--accent-cyan); font-size: 0.78rem; font-weight: 600; cursor: pointer;">
+                  <i class="fa-solid fa-key"></i> Auto-Generate
+                </button>
+              </div>
+              <input type="text" id="new-user-password" class="auth-input" style="padding-left: 1rem; font-family: var(--font-mono);" placeholder="Min 6 characters e.g. Pass@1234" required>
+            </div>
+
+            <button type="submit" id="btn-create-user-submit" class="btn btn-apply" style="width: 100%; margin-top: 0.5rem; padding: 0.8rem; font-size: 0.95rem; font-weight: 700; background: linear-gradient(135deg, #10b981, #059669); color: #000; border: none; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+              <i class="fa-solid fa-user-plus"></i> Create User
+            </button>
+          </form>
+        </div>
+
+        <!-- Right: Registered Users Directory Card -->
+        <div class="glass-card">
+          <div class="card-header" style="flex-wrap: wrap; gap: 0.75rem;">
+            <h2><i class="fa-solid fa-users" style="color: #38bdf8;"></i> Registered Users Directory</h2>
+            
+            <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
+              <input type="text" id="user-search-input" onkeyup="filterUsers()" placeholder="Search by name, email, area..." style="padding: 0.4rem 0.8rem; background: rgba(7, 12, 20, 0.7); border: 1px solid var(--border-color); color: #fff; border-radius: 6px; font-size: 0.82rem; width: 220px;">
+              
+              <select id="user-role-filter" onchange="filterUsers()" style="padding: 0.4rem 0.7rem; background: rgba(7, 12, 20, 0.7); border: 1px solid var(--border-color); color: #fff; border-radius: 6px; font-size: 0.82rem; cursor: pointer;">
+                <option value="all">All Roles</option>
+                <option value="forest_officer">Forest Officer</option>
+                <option value="villager">Villager</option>
+                <option value="police">Police</option>
+              </select>
+
+              <button onclick="loadAdminUsers()" title="Refresh Users" style="padding: 0.4rem 0.75rem; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; border-radius: 6px; cursor: pointer; font-size: 0.82rem;">
+                <i class="fa-solid fa-rotate"></i>
+              </button>
+            </div>
+          </div>
+
+          <div style="overflow-x: auto; margin-top: 0.75rem;">
+            <table class="police-table">
+              <thead>
+                <tr>
+                  <th>User Profile</th>
+                  <th>Email</th>
+                  <th>Phone</th>
+                  <th>Role</th>
+                  <th>Assigned Sector</th>
+                  <th>Status</th>
+                  <th>Created Date</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="user-mgmt-table-body">
+                <tr>
+                  <td colspan="8" style="text-align: center; padding: 2.5rem; color: var(--text-muted);">
+                    <i class="fa-solid fa-spinner fa-spin" style="font-size: 1.5rem; margin-bottom: 0.5rem; color: var(--accent-emerald);"></i>
+                    <p>Loading registered users from Supabase Cloud...</p>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </div>
 
   <!-- Image Modal Overlay -->
   <div id="image-modal" class="modal">
@@ -743,16 +999,53 @@
   <!-- Leaflet Map JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
+  <!-- Supabase JS Client (Realtime & Cloud API) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    window.SUPABASE_CONFIG = {
+      url: "{{ supabase_url | default('', true) }}",
+      anonKey: "{{ supabase_anon_key | default('', true) }}"
+    };
+  </script>
+
   <!-- Application JS Modules -->
   <script src="{{ url_for('static', filename='js/sensor_nodes.js') }}"></script>
   <script src="{{ url_for('static', filename='js/map.js') }}"></script>
-  <script src="{{ url_for('static', filename='js/dss.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/dss.js') }}?v=2"></script>
   <script src="{{ url_for('static', filename='js/sensor_monitoring.js') }}"></script>
   <script src="{{ url_for('static', filename='js/camera_detection.js') }}"></script>
   <script src="{{ url_for('static', filename='js/push_subscription.js') }}"></script>
   <script src="{{ url_for('static', filename='js/alerts.js') }}"></script>
   <script src="{{ url_for('static', filename='js/elephant_popup.js') }}"></script>
   <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/user_management.js') }}"></script>
+  <script>
+    async function handleLogout() {
+      try {
+        const res = await fetch('/api/auth/logout', { method: 'POST' });
+        const data = await res.json();
+        window.location.href = data.redirect_url || '/';
+      } catch (e) {
+        window.location.href = '/';
+      }
+    }
+  </script>
+
+  <!-- User Details Modal -->
+  <div id="user-details-modal" class="user-modal-overlay">
+    <div class="user-modal-content">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+        <h2 style="font-family: var(--font-title); font-size: 1.2rem; color: #fff;">
+          <i class="fa-solid fa-id-card" style="color: var(--accent-emerald);"></i> System User Profile
+        </h2>
+        <button onclick="closeUserDetailsModal()" style="background: none; border: none; color: var(--text-dim); font-size: 1.5rem; cursor: pointer;">&times;</button>
+      </div>
+      <div id="user-modal-body"></div>
+      <div style="text-align: right; margin-top: 1.5rem;">
+        <button onclick="closeUserDetailsModal()" style="padding: 0.45rem 1.2rem; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; border-radius: 6px; cursor: pointer;">Close</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Elephant Detection Popup -->
   <div class="elephant-popup-overlay" id="elephant-popup-overlay"></div>

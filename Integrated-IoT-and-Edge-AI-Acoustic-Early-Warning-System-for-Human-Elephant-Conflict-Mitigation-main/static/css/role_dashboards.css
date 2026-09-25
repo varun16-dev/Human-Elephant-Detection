@@ -1,0 +1,709 @@
+/* ==========================================================================
+   Role Dashboards Stylesheet (Villager & Police Dashboards)
+   Integrated IoT and Edge-AI Acoustic Early Warning System
+   ========================================================================== */
+
+/* Role Dashboard Top Header */
+.role-dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2rem;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border-color);
+  position: sticky;
+  top: 0;
+  z-index: 500;
+}
+
+.role-badge-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.85rem;
+  border-radius: 20px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.role-badge-tag.villager {
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: #f59e0b;
+}
+
+.role-badge-tag.police {
+  background: rgba(56, 189, 248, 0.15);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  color: #38bdf8;
+}
+
+.role-badge-tag.officer {
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: #10b981;
+}
+
+.header-user-info {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.user-name-display {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-logout {
+  padding: 0.45rem 1rem;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: var(--transition-fast);
+  text-decoration: none;
+}
+
+.btn-logout:hover {
+  background: #ef4444;
+  color: #fff;
+  box-shadow: 0 0 15px rgba(239, 68, 68, 0.4);
+}
+
+/* ==========================================================================
+   VILLAGER SAFETY DASHBOARD
+   ========================================================================== */
+
+.villager-container {
+  max-width: 1100px;
+  margin: 2rem auto;
+  padding: 0 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+/* Emergency Alert Banner */
+.villager-alert-banner {
+  border-radius: var(--radius-lg);
+  padding: 2.25rem;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  transition: var(--transition-normal);
+}
+
+.villager-alert-banner.danger {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.22) 0%, rgba(15, 23, 42, 0.95) 100%);
+  border: 2px solid #ef4444;
+  animation: pulse-danger-border 2s infinite;
+}
+
+@keyframes pulse-danger-border {
+  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5); }
+  70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+.villager-alert-banner.safe {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(15, 23, 42, 0.95) 100%);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.alert-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.alert-title-group {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.alert-big-icon {
+  font-size: 2.5rem;
+}
+
+.alert-big-title {
+  font-family: var(--font-title);
+  font-size: 1.85rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+.villager-alert-banner.danger .alert-big-title {
+  color: #f87171;
+}
+
+.villager-alert-banner.safe .alert-big-title {
+  color: #34d399;
+}
+
+.alert-time-pill {
+  padding: 0.4rem 1rem;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 20px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.alert-instruction-lead {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+  line-height: 1.5;
+}
+
+.villager-alert-banner.danger .alert-instruction-lead {
+  color: #fca5a5;
+}
+
+.villager-alert-banner.safe .alert-instruction-lead {
+  color: #a7f3d0;
+}
+
+.alert-details-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.detail-label {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  font-weight: 700;
+}
+
+.detail-value {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+/* Safety Instructions Section */
+.safety-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.safety-card {
+  background: rgba(15, 23, 42, 0.75);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  padding: 1.75rem;
+}
+
+.safety-card-title {
+  font-family: var(--font-title);
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin-bottom: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.safety-card.dos .safety-card-title {
+  color: #10b981;
+}
+
+.safety-card.donts .safety-card-title {
+  color: #ef4444;
+}
+
+.safety-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.safety-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.safety-list li i {
+  margin-top: 0.2rem;
+  flex-shrink: 0;
+}
+
+.safety-card.dos li i {
+  color: #10b981;
+}
+
+.safety-card.donts li i {
+  color: #ef4444;
+}
+
+/* Emergency Helplines */
+.emergency-hotlines-box {
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1.75rem;
+}
+
+.hotline-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+  margin-top: 1rem;
+}
+
+.hotline-card {
+  background: rgba(7, 12, 20, 0.7);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.hotline-info h4 {
+  font-size: 0.92rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.hotline-info p {
+  font-size: 0.82rem;
+  color: var(--text-dim);
+}
+
+.hotline-btn {
+  padding: 0.5rem 0.9rem;
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid var(--accent-emerald);
+  color: var(--accent-emerald);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: var(--transition-fast);
+}
+
+.hotline-btn:hover {
+  background: var(--accent-emerald);
+  color: #000;
+}
+
+/* Recent Alerts Feed */
+.recent-alerts-section {
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1.75rem;
+}
+
+.alerts-feed-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.alert-feed-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  background: rgba(7, 12, 20, 0.6);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  border-left: 4px solid var(--accent-cyan);
+}
+
+.alert-feed-item.danger {
+  border-left-color: #ef4444;
+}
+
+.alert-feed-item.safe {
+  border-left-color: #10b981;
+}
+
+/* ==========================================================================
+   POLICE INCIDENT DASHBOARD
+   ========================================================================== */
+
+.police-container {
+  max-width: 1350px;
+  margin: 2rem auto;
+  padding: 0 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+/* KPI Cards */
+.police-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.5rem;
+}
+
+.kpi-card {
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.kpi-card.pending {
+  border-left: 4px solid #f59e0b;
+}
+
+.kpi-card.acknowledged {
+  border-left: 4px solid #38bdf8;
+}
+
+.kpi-card.responding {
+  border-left: 4px solid #f97316;
+}
+
+.kpi-card.resolved {
+  border-left: 4px solid #10b981;
+}
+
+.kpi-num {
+  font-family: var(--font-title);
+  font-size: 2rem;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1;
+  margin-bottom: 0.35rem;
+}
+
+.kpi-title {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.kpi-icon-wrap {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.35rem;
+}
+
+/* Incident Board Table */
+.incident-board-card {
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1.75rem;
+}
+
+.table-header-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.incident-table-wrap {
+  overflow-x: auto;
+}
+
+.police-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.police-table th {
+  text-align: left;
+  padding: 0.85rem 1rem;
+  color: var(--text-dim);
+  font-weight: 700;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.police-table td {
+  padding: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  vertical-align: middle;
+}
+
+.status-badge-police {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.75rem;
+  border-radius: 14px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.status-badge-police.pending {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.status-badge-police.acknowledged {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.4);
+}
+
+.status-badge-police.responding {
+  background: rgba(249, 115, 22, 0.15);
+  color: #f97316;
+  border: 1px solid rgba(249, 115, 22, 0.4);
+  animation: pulse-orange 1.5s infinite;
+}
+
+@keyframes pulse-orange {
+  0% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.4); }
+  70% { box-shadow: 0 0 0 8px rgba(249, 115, 22, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0); }
+}
+
+.status-badge-police.resolved {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.action-select-status {
+  padding: 0.38rem 0.75rem;
+  background: rgba(7, 12, 20, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (max-width: 900px) {
+  .villager-container,
+  .police-container {
+    padding: 0 1rem;
+  }
+  .alert-details-grid,
+  .safety-grid,
+  .hotline-cards-grid,
+  .police-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ==========================================================================
+   FOREST OFFICER USER MANAGEMENT
+   ========================================================================== */
+
+.user-mgmt-layout {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  gap: 1.25rem;
+}
+
+@media (max-width: 1200px) {
+  .user-mgmt-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.user-role-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 12px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.user-role-badge.officer {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.user-role-badge.villager {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.user-role-badge.police {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.4);
+}
+
+.user-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 12px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.user-status-pill.active {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.user-status-pill.inactive {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.btn-action-view {
+  padding: 0.35rem 0.65rem;
+  background: rgba(56, 189, 248, 0.15);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  color: #38bdf8;
+  border-radius: 4px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.btn-action-view:hover {
+  background: #38bdf8;
+  color: #000;
+}
+
+.btn-action-disable {
+  padding: 0.35rem 0.65rem;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #ef4444;
+  border-radius: 4px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.btn-action-disable:hover {
+  background: #ef4444;
+  color: #fff;
+}
+
+.btn-action-activate {
+  padding: 0.35rem 0.65rem;
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: #10b981;
+  border-radius: 4px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.btn-action-activate:hover {
+  background: #10b981;
+  color: #000;
+}
+
+.user-feedback-banner {
+  display: none;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.86rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.user-feedback-banner.success {
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid #10b981;
+  color: #10b981;
+}
+
+.user-feedback-banner.error {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid #ef4444;
+  color: #ef4444;
+}
+
+/* User Details Modal */
+.user-modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  z-index: 2000;
+  align-items: center;
+  justify-content: center;
+}
+
+.user-modal-content {
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 2rem;
+  max-width: 500px;
+  width: 90%;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7);
+  position: relative;
+}
+
