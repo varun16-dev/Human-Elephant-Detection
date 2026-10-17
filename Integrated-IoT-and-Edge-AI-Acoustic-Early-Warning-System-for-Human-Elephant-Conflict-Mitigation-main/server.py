@@ -2891,8 +2891,8 @@ def start_demo_services():
     # 3. WhatsApp Service
     whatsapp_dir = os.path.abspath(os.path.join(base_dir, '..', 'whatsapp-service'))
     try:
-        npm_cmd = 'npm.cmd' if sys.platform == 'win32' else 'npm'
-        p3 = subprocess.Popen([npm_cmd, 'start'], cwd=whatsapp_dir)
+        node_cmd = 'node.exe' if sys.platform == 'win32' else 'node'
+        p3 = subprocess.Popen([node_cmd, 'server.js'], cwd=whatsapp_dir)
         DEMO_PROCESSES.append(p3)
         print("[✓] WhatsApp service starting")
     except Exception as e:
