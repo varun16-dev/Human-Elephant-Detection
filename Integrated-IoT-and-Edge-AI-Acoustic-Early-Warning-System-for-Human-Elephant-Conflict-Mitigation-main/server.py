@@ -2652,20 +2652,6 @@ def process_alert_detection():
             except Exception as asme:
                 print(f"[PROCESS-ALERT] Android SMS trigger error: {asme}")
 
-            # Trigger Twilio Programmable SMS Bilingual Alert (English + Tamil)
-            try:
-                from twilio_sms_service import get_twilio_sms_manager
-                twilio_mgr = get_twilio_sms_manager()
-                loc_name = (NODES_DATA[0].get('location') if NODES_DATA else 'Monitoring Zone 1')
-                twilio_mgr.process_detection_async(
-                    elephant_count=int(elephant_count),
-                    confidence=confidence,
-                    location=loc_name,
-                    timestamp=alert_event.get('timestamp')
-                )
-            except Exception as twe:
-                print(f"[PROCESS-ALERT] Twilio SMS trigger error: {twe}")
-
             # Trigger CircuitDigest Cloud SMS Gateway
             try:
                 from circuitdigest_sms_service import get_circuitdigest_sms_manager
@@ -3020,21 +3006,6 @@ def sync_detection_record(timestamp_iso, elephant_count, confidence, image_filen
             except Exception as asme:
                 print(f"[LIVE-SYNC] Android SIM SMS Gateway notice: {asme}")
 
-            # Twilio Programmable SMS Integration (Bilingual Alert: English + Tamil)
-            try:
-                from twilio_sms_service import get_twilio_sms_manager
-                twilio_mgr = get_twilio_sms_manager()
-                loc_name = (NODES_DATA[0].get('location') if NODES_DATA else 'Monitoring Zone 1')
-                twilio_mgr.process_detection_async(
-                    elephant_count=int(elephant_count),
-                    confidence=conf_norm,
-                    location=loc_name,
-                    timestamp=timestamp_iso
-                )
-                print(f"[LIVE-SYNC] Twilio SMS Gateway processed detection (Count: {elephant_count})")
-            except Exception as twe:
-                print(f"[LIVE-SYNC] Twilio SMS Gateway notice: {twe}")
-            
             # Web Push
             try:
                 service = get_notification_service()
@@ -5115,139 +5086,6 @@ def export_supabase_detections_csv():
     except Exception as e:
         print(f"[SUPABASE] Error exporting detections CSV: {e}")
         return jsonify({"error": str(e)}), 500
-
-# ==============================================================================
-# TWILIO PROGRAMMABLE MESSAGING REST API ENDPOINTS
-# ==============================================================================
-
-@app.route('/api/twilio/status', methods=['GET'])
-def get_twilio_status():
-    """Returns safe masked configuration and current operational status"""
-    try:
-        from twilio_sms_service import get_twilio_sms_manager
-        mgr = get_twilio_sms_manager()
-        return jsonify(mgr.get_safe_status())
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/api/twilio/config', methods=['GET', 'POST'])
-def handle_twilio_config():
-    """Retrieves or updates Twilio configuration settings safely"""
-    try:
-        from twilio_sms_service import get_twilio_sms_manager
-        mgr = get_twilio_sms_manager()
-        if request.method == 'GET':
-            return jsonify(mgr.get_safe_status())
-        data = request.json or {}
-        updated_status = mgr.save_config(data)
-        return jsonify({"success": True, "config": updated_status})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/api/twilio/validate', methods=['POST'])
-def validate_twilio_credentials():
-    """Validates Twilio credentials by querying account info without sending SMS"""
-    try:
-        from twilio_sms_service import get_twilio_sms_manager
-        mgr = get_twilio_sms_manager()
-        # Optional override from request body for testing new inputs
-        data = request.json or {}
-        if data.get("account_sid") and data.get("auth_token"):
-            mgr.save_config({
-                "account_sid": data["account_sid"],
-                "auth_token": data["auth_token"]
-            })
-        valid, msg, details = mgr.validate_credentials()
-        return jsonify({
-            "valid": valid,
-            "message": msg,
-            "details": details
-        })
-    except Exception as e:
-        return jsonify({"valid": False, "message": f"Validation error: {e}", "details": {}}), 500
-
-@app.route('/api/twilio/send-test', methods=['POST'])
-def send_twilio_test_sms():
-    """Dispatches a single authorized test SMS with explicit confirmation"""
-    try:
-        data = request.json or {}
-        confirmed = data.get("confirmed", False)
-        if not confirmed:
-            return jsonify({"success": False, "error": "Explicit user authorization confirmation required"}), 400
-
-        from twilio_sms_service import get_twilio_sms_manager, BilingualTwilioMessageBuilder
-        mgr = get_twilio_sms_manager()
-
-        target_phone = data.get("to_number") or mgr.config.get("to_number")
-        if not target_phone:
-            return jsonify({"success": False, "error": "Target recipient phone number is required"}), 400
-
-        state = data.get("state") or mgr.config.get("state", "tamil_nadu")
-        location = data.get("location") or mgr.config.get("location_name", "Monitoring Zone 1")
-        count = int(data.get("count", 1))
-
-        # Generate standard verification payload
-        test_body = BilingualTwilioMessageBuilder.build_alert_message(
-            count=count,
-            location=location,
-            state=state,
-            timestamp_str=datetime.now().strftime("%d/%m/%Y, %H:%M:%S")
-        )
-
-        success, msg, record = mgr.send_sms(to_number=target_phone, body=test_body)
-        return jsonify({
-            "success": success,
-            "message": msg,
-            "record": record
-        })
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
-
-@app.route('/api/twilio/webhook', methods=['POST'])
-def twilio_status_callback_webhook():
-    """Receives and processes Twilio StatusCallback webhooks"""
-    try:
-        from twilio_sms_service import get_twilio_sms_manager
-        mgr = get_twilio_sms_manager()
-        form_data = request.form.to_dict() or request.json or {}
-        mgr.handle_status_callback(form_data)
-        return Response("OK", mimetype="text/plain", status=200)
-    except Exception as e:
-        print(f"[TWILIO-SMS] StatusCallback webhook error: {e}")
-        return Response("Error", mimetype="text/plain", status=200)
-
-@app.route('/api/twilio/history', methods=['GET'])
-def get_twilio_history():
-    """Returns audit log of all Twilio SMS dispatches and delivery statuses"""
-    try:
-        from twilio_sms_service import get_twilio_sms_manager
-        mgr = get_twilio_sms_manager()
-        limit = int(request.args.get("limit", 50))
-        return jsonify(list(reversed(mgr.history))[:limit])
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/api/twilio/preview-message', methods=['POST'])
-def preview_twilio_message():
-    """Renders a bilingual message preview and calculates SMS segmentation metrics"""
-    try:
-        from twilio_sms_service import BilingualTwilioMessageBuilder
-        data = request.json or {}
-        count = int(data.get("count", 1))
-        state = data.get("state", "tamil_nadu")
-        location = data.get("location", "Monitoring Zone 1")
-        body = BilingualTwilioMessageBuilder.build_alert_message(count, location, state)
-        metrics = BilingualTwilioMessageBuilder.calculate_segments(body)
-        return jsonify({
-            "message": body,
-            "char_count": metrics["char_count"],
-            "segment_count": metrics["segment_count"],
-            "encoding": metrics["encoding"],
-            "is_unicode": metrics["is_unicode"]
-        })
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
 
 # ==============================================================================
 # CIRCUITDIGEST CLOUD SMS REST API ENDPOINTS

@@ -196,9 +196,9 @@ def run_migration_via_rpc(sb):
         ('MAX_ALERTS_PER_DETECTION', '5', 'Maximum alerts per single detection event'),
         ('DEVICE_OFFLINE_TIMEOUT_MINUTES', '15', 'Mark device offline after N minutes without heartbeat'),
         ('DEFAULT_CONFIDENCE_THRESHOLD', '75', 'Minimum confidence for elephant detection alerts'),
-        ('ENABLE_SMS_NOTIFICATIONS', 'true', 'Enable SMS alerts via Twilio'),
+        ('ENABLE_SMS_NOTIFICATIONS', 'true', 'Enable SMS alerts via SMS Gateway'),
         ('ENABLE_EMAIL_NOTIFICATIONS', 'true', 'Enable Email alerts'),
-        ('ENABLE_WHATSAPP_NOTIFICATIONS', 'false', 'Enable WhatsApp alerts via Twilio'),
+        ('ENABLE_WHATSAPP_NOTIFICATIONS', 'false', 'Enable WhatsApp alerts via WhatsApp Service'),
     ]
     for key, val, desc_text in settings:
         try:
@@ -507,9 +507,9 @@ INSERT INTO public.system_settings (setting_key, setting_value, description) VAL
   ('MAX_ALERTS_PER_DETECTION', '5', 'Maximum alerts per single detection event'),
   ('DEVICE_OFFLINE_TIMEOUT_MINUTES', '15', 'Mark device offline after N minutes without heartbeat'),
   ('DEFAULT_CONFIDENCE_THRESHOLD', '75', 'Minimum confidence for elephant detection alerts'),
-  ('ENABLE_SMS_NOTIFICATIONS', 'true', 'Enable SMS alerts via Twilio'),
+  ('ENABLE_SMS_NOTIFICATIONS', 'true', 'Enable SMS alerts via SMS Gateway'),
   ('ENABLE_EMAIL_NOTIFICATIONS', 'true', 'Enable Email alerts'),
-  ('ENABLE_WHATSAPP_NOTIFICATIONS', 'false', 'Enable WhatsApp alerts via Twilio')
+  ('ENABLE_WHATSAPP_NOTIFICATIONS', 'false', 'Enable WhatsApp alerts via WhatsApp Service')
 ON CONFLICT (setting_key) DO NOTHING;
 
 -- ============================================

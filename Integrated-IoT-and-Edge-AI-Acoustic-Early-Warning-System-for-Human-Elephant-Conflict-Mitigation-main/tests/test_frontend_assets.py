@@ -25,7 +25,6 @@ class TestFrontendAssets(unittest.TestCase):
         js_files = [
             os.path.join(BASE_DIR, 'static', 'js', 'free_alerts.js'),
             os.path.join(BASE_DIR, 'static', 'js', 'android_sms.js'),
-            os.path.join(BASE_DIR, 'static', 'js', 'twilio_sms.js'),
             os.path.join(BASE_DIR, 'static', 'js', 'vetrax_robot.js'),
             os.path.join(BASE_DIR, 'static', 'js', 'camera_detection.js')
         ]
@@ -116,42 +115,13 @@ class TestFrontendAssets(unittest.TestCase):
                 f"Required Android SMS DOM element id='{elem_id}' missing in templates/index.html"
             )
 
-    def test_index_html_twilio_sms_dom_elements(self):
-        """Verify templates/index.html includes required DOM IDs for Twilio Programmable SMS Gateway."""
+    def test_index_html_twilio_removed(self):
+        """Verify templates/index.html cleanly omits Twilio SMS components."""
         html_path = os.path.join(BASE_DIR, 'templates', 'index.html')
         with open(html_path, 'r', encoding='utf-8', errors='ignore') as f:
             content = f.read()
 
-        required_twilio_ids = [
-            "twilio-incident-state",
-            "twilio-status-badge",
-            "twilio-sid-display",
-            "twilio-from-display",
-            "twilio-to-display",
-            "twilio-last-status",
-            "twilio-validate-result",
-            "twilio-state-select",
-            "twilio-location-input",
-            "twilio-cooldown-input",
-            "twilio-policy-select",
-            "twilio-absence-input",
-            "twilio-preview-metrics",
-            "twilio-sim-count",
-            "twilio-message-preview",
-            "btn-validate-twilio",
-            "btn-save-twilio-config",
-            "btn-prompt-twilio-test",
-            "twilio-history-body",
-            "twilio-test-modal",
-            "btn-confirm-twilio-send"
-        ]
-
-        for elem_id in required_twilio_ids:
-            self.assertIn(
-                f'id="{elem_id}"',
-                content,
-                f"Required Twilio DOM element id='{elem_id}' missing in templates/index.html"
-            )
+        self.assertNotIn('twilio', content.lower())
 
 
 if __name__ == '__main__':

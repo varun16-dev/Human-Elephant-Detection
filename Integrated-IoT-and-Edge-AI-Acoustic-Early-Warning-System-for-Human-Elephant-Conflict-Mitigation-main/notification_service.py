@@ -137,12 +137,6 @@ class NotificationService:
             return success
         except Exception as e:
             print(f"[WHATSAPP] Error in dispatch_whatsapp_alert: {e}")
-            return False
-
-    def _dispatch_twilio_sms(self, alert_event):
-        """Legacy alias redirecting to local WhatsApp service"""
-        return self.dispatch_whatsapp_alert(alert_event)
-    
     def process_activity_detection(self, node_id, pir_detected, sound_detected, location, lat, lng):
         """
         Process PIR/sound activity detection (Stage 1: Activity Event)
@@ -480,7 +474,7 @@ Please take necessary safety precautions."""
             recipient: The recipient phone number
             channel: Communication channel (WHATSAPP)
             status: Delivery status (pending, sent, delivered, failed)
-            message_sid: Twilio message SID if sent
+            message_sid: Provider message identifier if available
             error_message: Error message if failed
         """
         try:

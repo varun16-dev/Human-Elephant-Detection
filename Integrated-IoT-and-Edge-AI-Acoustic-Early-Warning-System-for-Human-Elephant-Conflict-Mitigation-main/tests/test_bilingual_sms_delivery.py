@@ -33,7 +33,6 @@ from android_sms_gateway import (
     mask_phone_number,
     mask_api_key
 )
-from twilio_sms_service import BilingualTwilioMessageBuilder
 from server import app
 
 
