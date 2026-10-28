@@ -160,7 +160,6 @@ function switchTab(tabId, updateUrl = true) {
   if (updateUrl) {
     const tabRoutes = {
       'map-tab': '/dashboard',
-      'sensor-tab': '/devices',
       'sensor-monitoring-tab': '/raw-data',
       'camera-tab': '/detections',
       'alerts-tab': '/alerts',
@@ -187,7 +186,7 @@ window.addEventListener('popstate', (event) => {
     const path = window.location.pathname;
     const routeMap = {
       '/dashboard': 'map-tab',
-      '/devices': 'sensor-tab',
+      '/devices': 'sensor-monitoring-tab',
       '/raw-data': 'sensor-monitoring-tab',
       '/detections': 'camera-tab',
       '/elephant-images': 'camera-tab',
@@ -230,7 +229,7 @@ function switchRole(role) {
     switchTab('map-tab');
     alert("🛡️ Switched to FOREST OFFICIAL CONTROL ROOM VIEW: Full access to deterrent manual overrides and patrol dispatch.");
   } else if (role === 'technician') {
-    switchTab('sensor-tab');
+    switchTab('sensor-monitoring-tab');
     alert("🔧 Switched to FIELD TECHNICIAN DIAGNOSTICS VIEW: Direct telemetry and LoRa RSSI debugging.");
   }
 }

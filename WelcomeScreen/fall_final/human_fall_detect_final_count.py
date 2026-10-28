@@ -16,28 +16,139 @@ def safe_pause():
     except Exception:
         pass
 
+import json
 import pyttsx3
-
 import argparse
+import urllib.request
+import numpy as np
+
+# =====================================================
+# ESP32 WEBCAM & CAMERA SOURCE CONFIGURATION
+# =====================================================
+CONFIG_JSON_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "camera_config.json")
+
+def load_saved_camera_config():
+    """Loads saved camera source from camera_config.json"""
+    if os.path.exists(CONFIG_JSON_PATH):
+        try:
+            with open(CONFIG_JSON_PATH, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {}
+
+def save_camera_config(source_str):
+    """Persists camera source so it is remembered across runs"""
+    try:
+        raw_val = str(source_str).strip()
+        data = {
+            "camera_source": format_camera_source(raw_val) if not raw_val.isdigit() else int(raw_val),
+            "raw_input": raw_val,
+            "updated_at": datetime.now().isoformat()
+        }
+        if ":" in raw_val:
+            data["esp32_ip"] = raw_val.split(":")[0].replace("http://", "").replace("https://", "").replace("/", "")
+        elif not raw_val.isdigit():
+            data["esp32_ip"] = raw_val.replace("http://", "").replace("https://", "").replace("/", "")
+        with open(CONFIG_JSON_PATH, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+    except Exception as e:
+        print(f"[CONFIG] Warning: Could not save camera config: {e}")
+
+def format_camera_source(src):
+    """
+    Normalizes camera source.
+    - If digit (e.g. 0, 1): returns integer camera index.
+    - If starts with http/https/rtsp: returns full URL.
+    - If IP or IP:PORT (e.g. 10.57.175.25 or 10.57.175.25:81): formats as ESP32 stream URL.
+    """
+    if src is None:
+        return 0
+    s = str(src).strip()
+    if not s:
+        return 0
+    if s.isdigit():
+        return int(s)
+    if s.startswith(("http://", "https://", "rtsp://")):
+        return s
+    
+    # Format bare IP or IP:PORT to standard ESP32-CAM stream URL
+    if ":" in s:
+        parts = s.split(":")
+        ip = parts[0]
+        port_path = parts[1]
+        if "/stream" in s or "/mjpeg" in s or "/video" in s or "/" in port_path:
+            return f"http://{s}"
+        elif port_path.startswith("81"):
+            return f"http://{ip}:81/stream"
+        else:
+            return f"http://{s}/"
+    else:
+        # Default ESP32 camera stream endpoint (port 80 root stream)
+        return f"http://{s}/"
+
+def get_camera_source_input(cli_arg=None, force_prompt=False):
+    """
+    Determines camera source. If CLI arg is provided, uses it.
+    Otherwise, uses saved camera_config.json.
+    """
+    saved_cfg = load_saved_camera_config()
+    saved_src = saved_cfg.get("camera_source")
+    if saved_src is None:
+        saved_src = os.environ.get("ESP32_CAM_IP") or 0
+    
+    if cli_arg is not None and str(cli_arg).strip():
+        chosen = str(cli_arg).strip()
+        save_camera_config(chosen)
+        return format_camera_source(chosen)
+    
+    is_interactive = False
+    try:
+        is_interactive = sys.stdin and sys.stdin.isatty()
+    except Exception:
+        pass
+    
+    if is_interactive or force_prompt:
+        print("\n" + "=" * 65)
+        print("                   CAMERA SOURCE SETUP")
+        print("=" * 65)
+        print("Select Camera:")
+        print("  0 : Camera Index 0")
+        print("  1 : Camera Index 1")
+        print("  Or enter ESP32 IP/Stream URL (e.g. 192.168.1.50)")
+        print(f"Press Enter to use current [{saved_src}]:")
+        try:
+            user_input = input("Camera >> ").strip()
+            if user_input:
+                save_camera_config(user_input)
+                return format_camera_source(user_input)
+        except (EOFError, KeyboardInterrupt):
+            print("\nUsing default camera source.")
+        except Exception:
+            pass
+
+    return format_camera_source(saved_src)
 
 parser = argparse.ArgumentParser(description="Elephant Camera Detection Engine")
 parser.add_argument("--device-id", default="ESP32-NODE-01", help="Associated ESP32 Device ID")
 parser.add_argument("--trigger-source", default="MANUAL", help="Trigger source: PIR, SOUND, PIR_AND_SOUND, MANUAL")
 parser.add_argument("--session-seconds", type=int, default=15, help="Session duration in seconds (0 = run indefinitely)")
-parser.add_argument("--camera-index", type=int, default=0, help="Camera index")
+parser.add_argument("--camera-source", "--camera-index", dest="camera_source", default=None, help="Camera index (e.g. 0) or ESP32 Webcam IP/URL (e.g. 192.168.1.50)")
+parser.add_argument("--prompt-ip", action="store_true", help="Always prompt for ESP32 IP before starting")
 parser.add_argument("--headless", action="store_true", help="Run without GUI window")
+parser.add_argument("--confidence-threshold", type=float, default=0.72, help="Confidence threshold for elephant detection (default: 0.72)")
 args, _ = parser.parse_known_args()
 
 # =====================================================
 # SETTINGS
 # =====================================================
-CONFIDENCE_THRESHOLD = 0.45
-CAMERA_INDEX = args.camera_index
+CONFIDENCE_THRESHOLD = float(args.confidence_threshold)
+CAMERA_SOURCE = get_camera_source_input(args.camera_source, force_prompt=args.prompt_ip)
 LOG_INTERVAL_SECONDS = 1
 DEVICE_ID = args.device_id
 TRIGGER_SOURCE = args.trigger_source
 SESSION_SECONDS = args.session_seconds
-HEADLESS = args.headless
+HEADLESS = args.headless or os.getenv("ELEPHANT_HEADLESS", "0").lower() in ("1", "true", "yes")
 
 CLASS_FILE = "coco.data"
 CONFIG_FILE = "ssd_mobilenet_v3_large_coco_2020_01_14.pbtxt.txt"
@@ -220,20 +331,177 @@ def sync_detection_to_backend(elephant_count, highest_confidence, image_path, ti
 
 
 # =====================================================
-# OPEN CAMERA
+# ESP32 MJPEG STREAM CAPTURE ENGINE
 # =====================================================
-cap = cv2.VideoCapture(
-    CAMERA_INDEX,
-    cv2.CAP_DSHOW
-)
+class ESP32CameraCapture:
+    """
+    High-performance MJPEG stream decoder for ESP32-CAM.
+    Decodes JPEG frames continuously in a background thread to eliminate latency.
+    Implements standard cv2.VideoCapture interface.
+    """
+    def __init__(self, stream_url):
+        self.stream_url = stream_url
+        self.running = True
+        self.last_frame = None
+        self.last_frame_time = 0
+        self.first_frame_event = threading.Event()
+        self.lock = threading.Lock()
+        
+        self.thread = threading.Thread(target=self._worker, daemon=True)
+        self.thread.start()
+        
+        # Wait up to 5 seconds for the first frame
+        self.opened = self.first_frame_event.wait(timeout=5.0)
+        if not self.opened:
+            self.release()
 
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+    def _worker(self):
+        while self.running:
+            stream = None
+            try:
+                req = urllib.request.Request(self.stream_url, headers={'User-Agent': 'Mozilla/5.0'})
+                stream = urllib.request.urlopen(req, timeout=6.0)
+                buffer = b""
+                while self.running:
+                    chunk = stream.read(2048)
+                    if not chunk:
+                        time.sleep(0.01)
+                        continue
+                    buffer += chunk
+                    
+                    if len(buffer) > 150000:
+                        a = buffer.rfind(b'\xff\xd8')
+                        if a != -1:
+                            buffer = buffer[a:]
+                        else:
+                            buffer = b""
+                            continue
+
+                    a = buffer.find(b'\xff\xd8')
+                    b = buffer.find(b'\xff\xd9', a)
+                    if a != -1 and b != -1 and b > a:
+                        jpg_bytes = buffer[a:b+2]
+                        buffer = buffer[b+2:]
+                        frame = cv2.imdecode(np.frombuffer(jpg_bytes, dtype=np.uint8), cv2.IMREAD_COLOR)
+                        if frame is not None:
+                            with self.lock:
+                                self.last_frame = frame
+                                self.last_frame_time = time.time()
+                            if not self.first_frame_event.is_set():
+                                self.first_frame_event.set()
+            except Exception as e:
+                # Print connection diagnosis
+                print(f"[ESP32 STREAM DEBUG] Error on {self.stream_url}: {e}")
+                time.sleep(1.0)
+            finally:
+                if stream:
+                    try:
+                        stream.close()
+                    except Exception:
+                        pass
+
+    def isOpened(self):
+        return self.opened and self.running
+
+    def read(self):
+        with self.lock:
+            if self.last_frame is not None and (time.time() - self.last_frame_time < 5.0):
+                return True, self.last_frame.copy()
+        return False, None
+
+    def get(self, propId):
+        with self.lock:
+            if self.last_frame is not None:
+                if propId == cv2.CAP_PROP_FRAME_WIDTH:
+                    return float(self.last_frame.shape[1])
+                elif propId == cv2.CAP_PROP_FRAME_HEIGHT:
+                    return float(self.last_frame.shape[0])
+        return 0.0
+
+    def set(self, propId, value):
+        return True
+
+    def release(self):
+        self.running = False
+        self.opened = False
+
+
+# =====================================================
+# OPEN CAMERA (ESP32 WEBCAM / LOCAL WEBCAM)
+# =====================================================
+def open_camera_stream(source):
+    """
+    Opens video capture from an ESP32 network stream or local webcam.
+    Never silently falls back to laptop webcam if ESP32 source was requested.
+    """
+    print(f"\n[CAMERA] Connecting to video source: {source}")
+    if isinstance(source, int):
+        print(f"[CAMERA] Opening camera device index {source} via DirectShow...")
+        c = cv2.VideoCapture(source, cv2.CAP_DSHOW)
+        if not c.isOpened():
+            for retry in range(1, 4):
+                print(f"[CAMERA] Camera index {source} busy or initializing, retrying ({retry}/3)...")
+                time.sleep(1.0)
+                c = cv2.VideoCapture(source, cv2.CAP_DSHOW)
+                if c.isOpened():
+                    break
+        if c.isOpened():
+            c.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+            c.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+            print(f"[CAMERA] SUCCESS! Opened camera device index {source}")
+        else:
+            print(f"[CAMERA ERROR] Could not open camera device index {source}.")
+            print(f"[CAMERA ERROR] Please ensure no other process is holding the camera.")
+        return c
+
+    # Network IP Stream (ESP32-CAM)
+    print(f"[CAMERA] Opening ESP32 MJPEG stream: {source} ...")
+    cap = ESP32CameraCapture(str(source))
+    if cap.isOpened():
+        print(f"[CAMERA] SUCCESS! Connected to ESP32 stream: {source}")
+        return cap
+
+    # If stream didn't open, try common alternate ESP32 endpoints
+    src_str = str(source).strip()
+    alternates = []
+    if ":81/stream" in src_str:
+        alternates.append(src_str.replace(":81/stream", "/"))
+        alternates.append(src_str.replace(":81/stream", "/stream"))
+    elif src_str.endswith("/"):
+        base = src_str[:-1]
+        alternates.append(f"{base}:81/stream")
+        alternates.append(f"{base}/stream")
+    elif "/stream" in src_str:
+        alternates.append(src_str.replace("/stream", "/"))
+        alternates.append(src_str.replace("/stream", ":81/stream"))
+
+    for alt in alternates:
+        print(f"[CAMERA] Retrying alternate ESP32 endpoint: {alt} ...")
+        alt_cap = ESP32CameraCapture(alt)
+        if alt_cap.isOpened():
+            print(f"[CAMERA] SUCCESS! Connected to alternate ESP32 stream: {alt}")
+            save_camera_config(alt)
+            return alt_cap
+
+    return cap
+
+cap = open_camera_stream(CAMERA_SOURCE)
 
 if not cap.isOpened():
-    print("ERROR: Camera could not be opened.")
-    print("Check Windows camera permission.")
-    print("Close Camera, Zoom, Meet and WhatsApp.")
+    print(f"\n[ERROR] Camera source could not be opened: {CAMERA_SOURCE}")
+    if not isinstance(CAMERA_SOURCE, int):
+        print("\n--- ESP32 WEBCAM TROUBLESHOOTING ---")
+        print("1. Ensure ESP32-CAM is powered ON and connected to the same Wi-Fi network.")
+        print(f"2. Verify the stream URL in your web browser: {CAMERA_SOURCE}")
+        print("3. Common ESP32-CAM stream URLs:")
+        print("   - http://<ESP32_IP>:81/stream (standard CameraWebServer)")
+        print("   - http://<ESP32_IP>/stream")
+        print("   - http://<ESP32_IP>:8080/video")
+        print("4. Check that your Windows firewall is not blocking incoming RTSP/HTTP streams.")
+    else:
+        print("\n--- LAPTOP WEBCAM TROUBLESHOOTING ---")
+        print("1. Check Windows Settings -> Privacy -> Camera permissions.")
+        print("2. Ensure no other applications (Zoom, Teams, Meet, WhatsApp) are using the camera.")
     safe_pause()
     raise SystemExit(1)
 
@@ -264,10 +532,53 @@ if not csv_already_exists:
 
     csv_file.flush()
 
+def get_camera_name(src):
+    """Returns friendly label for camera source"""
+    if src == 0:
+        return "Laptop Webcam (Cam 0)"
+    elif src == 1:
+        return "External HD Webcam (Cam 1)"
+    elif isinstance(src, int):
+        return f"USB Camera {src}"
+    else:
+        return f"ESP32 Stream ({src})"
+
+def switch_camera_source(new_src, current_cap):
+    """Dynamically switch camera capture between Laptop Webcam and External Webcam"""
+    global CAMERA_SOURCE, last_switch_time, switch_banner_text, elephant_event_active, current_event_image
+    formatted = format_camera_source(new_src)
+    if formatted == CAMERA_SOURCE and current_cap is not None and getattr(current_cap, 'isOpened', lambda: False)():
+        return current_cap
+    
+    print(f"\n[CAMERA SWITCH] >>> Switching camera to: {formatted} ({get_camera_name(formatted)}) <<<")
+    if current_cap is not None:
+        try:
+            current_cap.release()
+        except Exception:
+            pass
+        time.sleep(0.3)
+    
+    new_cap = open_camera_stream(formatted)
+    if new_cap and getattr(new_cap, 'isOpened', lambda: False)():
+        CAMERA_SOURCE = formatted
+        save_camera_config(formatted)
+        last_switch_time = time.time()
+        switch_banner_text = f"SWITCHED TO: {get_camera_name(formatted)}"
+        elephant_event_active = False
+        current_event_image = ""
+        print(f"[CAMERA SWITCH] SUCCESS! Now running elephant detection on {get_camera_name(formatted)}")
+        return new_cap
+    else:
+        print(f"[CAMERA SWITCH] FAILED to open {formatted}. Falling back to previous {CAMERA_SOURCE}")
+        return open_camera_stream(CAMERA_SOURCE)
+
 # =====================================================
 # VARIABLES
 # =====================================================
 last_log_time = 0
+last_switch_time = time.time()
+switch_banner_text = f"ACTIVE: {get_camera_name(CAMERA_SOURCE)}"
+loop_counter = 0
 
 # True while an elephant detection event is active
 elephant_event_active = False
@@ -276,26 +587,41 @@ elephant_event_active = False
 current_event_image = ""
 
 print("\nElephant detection started.")
-print("Press Q inside the camera window to stop.")
+print(f"Active Camera: {get_camera_name(CAMERA_SOURCE)}")
+print("Keyboard Controls:")
+print("  - Press 'C' or 'S' to TOGGLE between Laptop Webcam and External Webcam")
+print("  - Press '0' to switch to Laptop Webcam (Index 0)")
+print("  - Press '1' to switch to External HD Webcam (Index 1)")
+print("  - Press 'Q' inside the camera window to stop.")
 print("CSV dataset:", CSV_FILE)
 print("Detected images:", IMAGE_FOLDER)
 
 # =====================================================
 # MAIN DETECTION LOOP
 # =====================================================
+consecutive_empty_frames = 0
+MAX_EMPTY_FRAMES = 30  # Allow up to ~3 seconds of network stutter before exiting
+
 while True:
 
     success, frame = cap.read()
 
-    # Prevent empty image error
+    # Prevent empty image error with graceful retry for network streams
     if not success or frame is None or frame.size == 0:
-        print("WARNING: Camera frame was not received.")
-        break
+        consecutive_empty_frames += 1
+        if consecutive_empty_frames >= MAX_EMPTY_FRAMES:
+            print("WARNING: Camera stream lost (30 consecutive failed frames). Exiting detection loop.")
+            break
+        time.sleep(0.1)
+        continue
+
+    consecutive_empty_frames = 0
 
     try:
+        # Detect with lower bound to capture both person and elephant context for conflict suppression
         class_ids, confidences, boxes = net.detect(
             frame,
-            confThreshold=CONFIDENCE_THRESHOLD,
+            confThreshold=min(CONFIDENCE_THRESHOLD, 0.40),
             nmsThreshold=0.4
         )
 
@@ -306,9 +632,14 @@ while True:
     elephant_detections = []
 
     # =================================================
-    # FILTER ONLY ELEPHANT DETECTIONS
+    # FILTER ELEPHANT DETECTIONS & SUPPRESS FALSE POSITIVES
     # =================================================
     if class_ids is not None and len(class_ids) > 0:
+        h_frame, w_frame = frame.shape[:2]
+        frame_area = float(max(h_frame * w_frame, 1))
+
+        person_boxes = []
+        raw_candidates = []
 
         for class_id, confidence, box in zip(
             class_ids.flatten(),
@@ -329,16 +660,47 @@ while True:
                 .lower()
             )
 
-            if object_name == "elephant":
-                x, y, width, height = map(int, box)
+            if object_name == "person":
+                person_boxes.append((box, float(confidence)))
+            elif object_name == "elephant" and float(confidence) >= CONFIDENCE_THRESHOLD:
+                raw_candidates.append((box, float(confidence)))
 
-                elephant_detections.append({
-                    "confidence": float(confidence),
-                    "x": x,
-                    "y": y,
-                    "width": width,
-                    "height": height
-                })
+        for box, conf in raw_candidates:
+            x, y, width, height = map(int, box)
+            box_area = float(max(width * height, 1))
+
+            # Suppression Rule 1: Full-frame bounding box artifact.
+            # If the candidate covers >= 80% of the entire frame, MobileNet SSD
+            # is misattributing room lighting/walls as an elephant. Require >= 0.85 confidence.
+            if (box_area / frame_area) >= 0.80 and conf < 0.85:
+                continue
+
+            # Suppression Rule 2: Person conflict check.
+            # If candidate overlaps heavily (> 45% of its area) with a detected human person
+            # and confidence is below 0.80, suppress as a human false positive.
+            person_conflict = False
+            for p_box, _ in person_boxes:
+                px, py, pw, ph = map(int, p_box)
+                ix1 = max(x, px)
+                iy1 = max(y, py)
+                ix2 = min(x + width, px + pw)
+                iy2 = min(y + height, py + ph)
+                if ix2 > ix1 and iy2 > iy1:
+                    inter_area = float((ix2 - ix1) * (iy2 - iy1))
+                    if (inter_area / box_area) > 0.45 and conf < 0.80:
+                        person_conflict = True
+                        break
+
+            if person_conflict:
+                continue
+
+            elephant_detections.append({
+                "confidence": conf,
+                "x": x,
+                "y": y,
+                "width": width,
+                "height": height
+            })
 
     # =================================================
     # COUNT ELEPHANTS
@@ -519,15 +881,90 @@ while True:
             )
 
     # =================================================
-    # SHOW VIDEO
+    # SHOW VIDEO & CAMERA CONTROLS HUD
     # =================================================
-    cv2.imshow(
-        "Elephant Detection System",
-        frame
+    display_frame = frame
+    if frame is not None and frame.shape[1] < 640:
+        scale = 640.0 / frame.shape[1]
+        display_frame = cv2.resize(frame, (640, int(frame.shape[0] * scale)), interpolation=cv2.INTER_LINEAR)
+
+    # Render Camera Info Pill HUD in top-right
+    h_d, w_d = display_frame.shape[:2]
+    cam_str = get_camera_name(CAMERA_SOURCE)
+    cv2.rectangle(display_frame, (w_d - 360, 10), (w_d - 10, 42), (15, 23, 42), -1)
+    cv2.rectangle(display_frame, (w_d - 360, 10), (w_d - 10, 42), (6, 182, 212), 1)
+    cv2.putText(
+        display_frame,
+        f"CAM: {cam_str} [Press C/0/1]",
+        (w_d - 350, 31),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.44,
+        (255, 255, 255),
+        1,
+        cv2.LINE_AA
     )
 
-    if cv2.waitKey(1) & 0xFF == ord("q"):
-        break
+    # Show eye-catching switch notification banner for 3 seconds after switching
+    if time.time() - last_switch_time < 3.0:
+        cv2.rectangle(display_frame, (20, h_d - 85), (w_d - 20, h_d - 20), (15, 23, 42), -1)
+        cv2.rectangle(display_frame, (20, h_d - 85), (w_d - 20, h_d - 20), (6, 182, 212), 2)
+        cv2.putText(
+            display_frame,
+            f">>> {switch_banner_text} <<<",
+            (40, h_d - 55),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.65,
+            (6, 182, 212),
+            2,
+            cv2.LINE_AA
+        )
+        cv2.putText(
+            display_frame,
+            "AI ELEPHANT DETECTION ENGINE ACTIVE ON THIS CAMERA",
+            (40, h_d - 32),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.45,
+            (255, 255, 255),
+            1,
+            cv2.LINE_AA
+        )
+
+    if not HEADLESS:
+        cv2.imshow(
+            "Elephant Detection System",
+            display_frame
+        )
+
+        # Keyboard Camera Switcher:
+        # 'Q': Exit
+        # 'C' or 'S': Toggle between Laptop (0) and External (1)
+        # '0': Select Laptop Webcam
+        # '1': Select External HD Webcam
+        key = cv2.waitKey(1) & 0xFF
+        if key in (ord("q"), ord("Q")):
+            break
+        elif key in (ord("c"), ord("C"), ord("s"), ord("S")):
+            next_cam = 1 if CAMERA_SOURCE == 0 else 0
+            cap = switch_camera_source(next_cam, cap)
+        elif key == ord("0"):
+            cap = switch_camera_source(0, cap)
+        elif key == ord("1"):
+            cap = switch_camera_source(1, cap)
+    else:
+        # Sleep lightly in headless mode to prevent busy-waiting loop
+        time.sleep(0.01)
+
+    # Check for external camera switch requests from web dashboard config every ~1 second
+    loop_counter += 1
+    if loop_counter % 25 == 0:
+        try:
+            cfg = load_saved_camera_config()
+            cfg_src = format_camera_source(cfg.get("camera_source", CAMERA_SOURCE))
+            if cfg_src != CAMERA_SOURCE:
+                print(f"[CONFIG SYNC] Dashboard requested camera switch to: {cfg_src}")
+                cap = switch_camera_source(cfg_src, cap)
+        except Exception:
+            pass
 
 # =====================================================
 # CLOSE PROGRAM

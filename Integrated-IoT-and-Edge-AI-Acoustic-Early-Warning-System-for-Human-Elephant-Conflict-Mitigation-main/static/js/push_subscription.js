@@ -204,7 +204,7 @@ function updatePushUI(state) {
       break;
       
     case 'subscribed':
-      statusElement.textContent = '🔔 Notifications enabled';
+      statusElement.textContent = '🔔 Notifications enabled — Telegram alerts ACTIVE';
       statusElement.className = 'push-status success';
       if (subscribeButton) subscribeButton.disabled = true;
       if (unsubscribeButton) unsubscribeButton.disabled = false;
@@ -234,6 +234,37 @@ function updatePushUI(state) {
     default:
       statusElement.textContent = 'Unknown state';
       statusElement.className = 'push-status error';
+  }
+
+  // Synchronize linked Telegram alert gateway status badge
+  const tgBadge = document.getElementById('telegram-status-badge');
+  const tgLinkIndicator = document.getElementById('telegram-linked-indicator');
+  if (state === 'subscribed') {
+    if (tgBadge) {
+      tgBadge.innerHTML = '<i class="fa-solid fa-circle-check"></i> Web Notifications Active (Telegram Enabled)';
+      tgBadge.style.background = 'rgba(16, 185, 129, 0.15)';
+      tgBadge.style.color = '#10b981';
+      tgBadge.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+    }
+    if (tgLinkIndicator) {
+      tgLinkIndicator.innerHTML = '<i class="fa-brands fa-telegram"></i> <span>Telegram Notifications: <strong>ACTIVE</strong> (Linked to Web Notification)</span>';
+      tgLinkIndicator.style.background = 'rgba(16, 185, 129, 0.12)';
+      tgLinkIndicator.style.color = '#10b981';
+      tgLinkIndicator.style.borderColor = 'rgba(16, 185, 129, 0.35)';
+    }
+  } else {
+    if (tgBadge) {
+      tgBadge.innerHTML = '<i class="fa-solid fa-pause"></i> Web Notifications Inactive (Telegram Paused)';
+      tgBadge.style.background = 'rgba(245, 158, 11, 0.15)';
+      tgBadge.style.color = '#f59e0b';
+      tgBadge.style.borderColor = 'rgba(245, 158, 11, 0.4)';
+    }
+    if (tgLinkIndicator) {
+      tgLinkIndicator.innerHTML = '<i class="fa-brands fa-telegram"></i> <span>Telegram Notifications: <strong>PAUSED</strong> (Requires Web Notification Activation)</span>';
+      tgLinkIndicator.style.background = 'rgba(245, 158, 11, 0.12)';
+      tgLinkIndicator.style.color = '#f59e0b';
+      tgLinkIndicator.style.borderColor = 'rgba(245, 158, 11, 0.35)';
+    }
   }
 }
 

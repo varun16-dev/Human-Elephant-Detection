@@ -20,8 +20,8 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <!-- App Main CSS -->
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=2">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/camera_detection.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=4">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/camera_detection.css') }}?v=4">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/alerts.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/sensor_monitoring.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/role_dashboards.css') }}">
@@ -68,9 +68,6 @@
   <nav class="nav-tabs">
     <button class="nav-tab active" onclick="switchTab('map-tab')">
       <i class="fa-solid fa-map-location-dot"></i> Live GIS Corridor Map
-    </button>
-    <button class="nav-tab" onclick="switchTab('sensor-tab')">
-      <i class="fa-solid fa-microchip"></i> IoT Sensor Nodes & Telemetry
     </button>
     <button class="nav-tab" onclick="switchTab('sensor-monitoring-tab')">
       <i class="fa-solid fa-chart-line"></i> Sensor Monitoring
@@ -253,24 +250,6 @@
       </div>
     </div>
 
-    <!-- TAB 2: IoT Field Sensor Nodes & Telemetry -->
-    <div id="sensor-tab" class="tab-pane">
-      <div class="glass-card">
-        <div class="card-header">
-          <h2><i class="fa-solid fa-microchip" style="color: #06b6d4;"></i> IoT Field Sensor Nodes & Telemetry</h2>
-          <span class="header-tag">LoRaWAN & Wi-Fi Protocol</span>
-        </div>
-        
-        <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.25rem;">
-          Each field node integrates a PIR motion sensor, acoustic microphone, ground vibration sensor, GPS module, and temperature/humidity sensor. Data is processed locally by Edge-AI before transmitting to Supabase.
-        </p>
-
-        <div id="nodes-container" class="nodes-grid">
-          <!-- Rendered dynamically by sensor_nodes.js -->
-        </div>
-      </div>
-    </div>
-
     <!-- TAB 3: Sensor Monitoring -->
     <div id="sensor-monitoring-tab" class="tab-pane">
       <!-- Target Field Node Selector -->
@@ -321,6 +300,7 @@
               </div>
             </div>
           </div>
+
 
           <!-- PIR Status Card -->
           <div class="glass-card">
@@ -576,17 +556,72 @@
             </div>
           </div>
 
-          <!-- Latest Detection Image View -->
+          <!-- Live ESP32 Webcam Feed & Detection Image View -->
           <div class="glass-card">
-            <div class="card-header">
-              <h2><i class="fa-solid fa-image" style="color: #06b6d4;"></i> Latest Detection Image</h2>
-              <span class="header-tag">Bounding Box View</span>
+            <div class="card-header" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+              <h2 style="margin: 0;"><i class="fa-solid fa-video" style="color: #06b6d4;"></i> Live AI Camera Feed</h2>
+              <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
+                <!-- 1-Click Camera Switcher Pill -->
+                <div style="display: inline-flex; align-items: center; background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(6, 182, 212, 0.4); border-radius: 8px; padding: 2px; gap: 2px;">
+                  <button id="btn-quick-cam-0" class="action-btn" onclick="quickSwitchCamera(0)" title="Detect elephants using Laptop Webcam" style="padding: 0.25rem 0.65rem; font-size: 0.75rem; border: none; border-radius: 6px; cursor: pointer; transition: all 0.2s ease;">
+                    <i class="fa-solid fa-laptop"></i> Cam 0 (Laptop)
+                  </button>
+                  <button id="btn-quick-cam-1" class="action-btn" onclick="quickSwitchCamera(1)" title="Detect elephants using External USB Webcam" style="padding: 0.25rem 0.65rem; font-size: 0.75rem; border: none; border-radius: 6px; cursor: pointer; transition: all 0.2s ease;">
+                    <i class="fa-solid fa-camera"></i> Cam 1 (External HD)
+                  </button>
+                  <button id="btn-quick-cam-custom" class="action-btn" onclick="openCustomIPModal()" title="Connect to Custom IP / ESP32-CAM Stream" style="padding: 0.25rem 0.65rem; font-size: 0.75rem; border: none; border-radius: 6px; cursor: pointer; transition: all 0.2s ease;">
+                    <i class="fa-solid fa-network-wired"></i> Custom IP
+                  </button>
+                </div>
+                <button id="btn-stream-mode" class="action-btn" onclick="switchCameraView('live')" style="padding: 0.35rem 0.75rem; font-size: 0.75rem; background: rgba(6, 182, 212, 0.2); border-color: #06b6d4; color: #fff;">
+                  <i class="fa-solid fa-circle" style="color: #22c55e; font-size: 0.55rem;"></i> Live
+                </button>
+                <button id="btn-bbox-mode" class="action-btn" onclick="switchCameraView('bbox')" style="padding: 0.35rem 0.75rem; font-size: 0.75rem;">
+                  <i class="fa-solid fa-vector-square"></i> Bbox
+                </button>
+                <button class="action-btn" onclick="openCustomIPModal()" title="Custom IP or Stream URL" style="padding: 0.35rem 0.65rem; font-size: 0.75rem;">
+                  <i class="fa-solid fa-gear"></i>
+                </button>
+                <button class="action-btn" onclick="reloadLiveStream()" title="Reload Stream" style="padding: 0.35rem 0.6rem; font-size: 0.75rem;">
+                  <i class="fa-solid fa-rotate-right"></i>
+                </button>
+              </div>
             </div>
-            <div class="live-image-container" id="live-feed-view">
-              <div class="live-image-placeholder">
-                <i class="fa-solid fa-video-slash"></i>
-                <p style="font-weight: 600;">No Recent Bounding Box Image Available</p>
-                <p style="font-size: 0.75rem; color: var(--text-dim);">When elephants are detected by the webcam, bounding-box images will be rendered here.</p>
+            
+            <div class="live-image-container" id="camera-display-container">
+              <!-- 1. Live Video Stream View (Active by default) -->
+              <div id="panel-live-stream" style="width: 100%; height: 100%; position: relative; display: flex; align-items: center; justify-content: center; background: #000;">
+                <img src="/api/camera/stream" class="live-image-feed" id="live-stream-player" alt="Live Camera Video Stream" onerror="fallbackToProxyStream(this)" style="width: 100%; height: 100%; object-fit: contain;">
+                <div class="live-image-overlay">
+                  <span><i class="fa-solid fa-circle" style="color: #22c55e; font-size: 0.55rem;"></i> <strong>AI STREAM</strong> &bull; <span id="active-cam-type">Camera Feed</span></span>
+                  <span id="active-cam-badge"><i class="fa-solid fa-video"></i> Camera 0</span>
+                </div>
+              </div>
+
+              <!-- 2. Bounding Box Detection View (Shown when toggled or when elephant detected) -->
+              <div id="panel-bbox-view" style="width: 100%; height: 100%; position: relative; display: none;">
+                <div class="live-image-placeholder" id="bbox-placeholder">
+                  <i class="fa-solid fa-video-slash"></i>
+                  <p style="font-weight: 600;">No Recent Bounding Box Image Available</p>
+                  <p style="font-size: 0.75rem; color: var(--text-dim);">When elephants are detected by the webcam, bounding-box images will be rendered here.</p>
+                </div>
+              </div>
+            </div>
+            <div style="font-size: 0.75rem; color: var(--text-dim); margin-top: 0.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.4rem;">
+              <div style="display: flex; align-items: center; gap: 0.4rem;">
+                <i class="fa-solid fa-circle-check" style="color: #22c55e;"></i>
+                <span id="cam-hardware-note"><strong>Camera Source:</strong> Connected Camera.</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 0.4rem;">
+                <button class="action-btn" onclick="quickSwitchCamera(0)" id="sub-btn-cam-0" style="padding: 0.2rem 0.55rem; font-size: 0.7rem;">
+                  <i class="fa-solid fa-laptop"></i> Use Laptop Cam 0
+                </button>
+                <button class="action-btn" onclick="quickSwitchCamera(1)" id="sub-btn-cam-1" style="padding: 0.2rem 0.55rem; font-size: 0.7rem;">
+                  <i class="fa-solid fa-camera"></i> Use External Cam 1
+                </button>
+                <button class="action-btn" onclick="openCustomIPModal()" id="sub-btn-cam-custom" style="padding: 0.2rem 0.5rem; font-size: 0.7rem; color: var(--accent-cyan); border-color: rgba(6,182,212,0.3);">
+                  <i class="fa-solid fa-sliders"></i> Custom IP
+                </button>
               </div>
             </div>
           </div>
@@ -774,11 +809,14 @@
               <div class="push-status" id="push-status">Initializing...</div>
               <div class="push-buttons">
                 <button class="action-btn" id="push-subscribe-btn" onclick="handlePushSubscribe()">
-                  <i class="fa-solid fa-bell"></i> Subscribe
+                  <i class="fa-solid fa-bell"></i> Subscribe (Enable Alerts)
                 </button>
                 <button class="action-btn" id="push-unsubscribe-btn" onclick="handlePushUnsubscribe()">
-                  <i class="fa-solid fa-bell-slash"></i> Unsubscribe
+                  <i class="fa-solid fa-bell-slash"></i> Unsubscribe (Pause Alerts)
                 </button>
+              </div>
+              <div id="telegram-linked-indicator" style="margin-top: 0.65rem; font-size: 0.78rem; padding: 0.45rem 0.75rem; border-radius: 6px; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.35); color: #f59e0b; display: flex; align-items: center; gap: 0.5rem;">
+                <i class="fa-brands fa-telegram"></i> <span>Telegram Notifications: <strong>PAUSED</strong> (Requires Web Notification Activation)</span>
               </div>
             </div>
           </div>
@@ -801,6 +839,112 @@
               <div class="config-row">
                 <label>Alert Cooldown:</label>
                 <span id="config-cooldown">300 seconds</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- ============================================================ -->
+          <!-- TELEGRAM INSTANT ALERT GATEWAY (EXCLUSIVE ALERT CHANNEL)     -->
+          <!-- ============================================================ -->
+          <div class="glass-card" id="telegram-alert-card" style="margin-top: 1rem;">
+            <div class="card-header" style="flex-wrap: wrap; gap: 0.5rem;">
+              <div style="display: flex; align-items: center; gap: 0.6rem;">
+                <h2><i class="fa-brands fa-telegram" style="color: #38bdf8;"></i> Telegram Instant Alert Gateway</h2>
+                <span id="telegram-status-badge" class="header-tag" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4);">
+                  <i class="fa-solid fa-circle-check"></i> Telegram Active (Primary)
+                </span>
+              </div>
+              <div>
+                <button type="button" id="btn-test-telegram" class="btn" style="padding: 0.4rem 0.9rem; font-size: 0.82rem; background: rgba(56, 189, 248, 0.18); border: 1px solid rgba(56, 189, 248, 0.45); color: #38bdf8; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                  <i class="fa-brands fa-telegram"></i> Test Telegram Ping
+                </button>
+              </div>
+            </div>
+
+            <!-- Telegram Key Configuration Form -->
+            <form id="free-alert-form" onsubmit="event.preventDefault();" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0.85rem; margin-top: 1rem;">
+              <div>
+                <label style="display: block; font-size: 0.78rem; font-weight: 600; color: var(--text-main); margin-bottom: 0.3rem;">
+                  Telegram Bot Token <span style="color: #38bdf8;">*</span>
+                </label>
+                <input type="password" id="free-telegram-token" class="auth-input" placeholder="e.g. 1234567890:AAH_example_token..." style="padding: 0.5rem 0.75rem; font-family: var(--font-mono); font-size: 0.82rem;">
+              </div>
+
+              <div>
+                <label style="display: block; font-size: 0.78rem; font-weight: 600; color: var(--text-main); margin-bottom: 0.3rem;">
+                  Telegram Chat / Group ID <span style="color: #38bdf8;">*</span>
+                </label>
+                <input type="text" id="free-telegram-chat" class="auth-input" placeholder="e.g. -1001234567890 or 123456789" style="padding: 0.5rem 0.75rem; font-family: var(--font-mono); font-size: 0.82rem;">
+              </div>
+
+              <div>
+                <label style="display: block; font-size: 0.78rem; font-weight: 600; color: var(--text-main); margin-bottom: 0.3rem;">Alert Severity Level</label>
+                <select id="free-alert-severity" class="auth-input" style="padding: 0.5rem 0.75rem;">
+                  <option value="EMERGENCY">EMERGENCY (Red Alert 🚨)</option>
+                  <option value="WARNING">WARNING (High Caution ⚠️)</option>
+                  <option value="INFO">INFO (Advisory ℹ️)</option>
+                </select>
+              </div>
+
+              <div>
+                <label style="display: block; font-size: 0.78rem; font-weight: 600; color: var(--text-main); margin-bottom: 0.3rem;">Automated Dispatch Language</label>
+                <input type="text" class="auth-input" value="Trilingual (English + தமிழ் + ಕನ್ನಡ)" disabled style="padding: 0.5rem 0.75rem; opacity: 0.85; background: rgba(0,0,0,0.3);">
+              </div>
+
+              <div style="grid-column: 1 / -1;">
+                <label style="display: block; font-size: 0.78rem; font-weight: 600; color: var(--text-main); margin-bottom: 0.3rem;">
+                  Manual Broadcast Message (Optional)
+                </label>
+                <textarea id="free-alert-message" class="auth-input" rows="2" style="padding: 0.5rem 0.75rem;" placeholder="Elephant detected near Forest Sector 4 corridor. Immediate caution advised..."></textarea>
+              </div>
+            </form>
+
+            <!-- Action Buttons -->
+            <div style="display: flex; gap: 0.75rem; margin-top: 1rem; flex-wrap: wrap;">
+              <button type="button" id="btn-save-free-config" class="btn btn-apply" style="padding: 0.55rem 1.25rem; font-size: 0.85rem; font-weight: 700; background: #10b981; color: #000; border: none; border-radius: 6px; cursor: pointer;">
+                <i class="fa-solid fa-floppy-disk"></i> Save Telegram Settings
+              </button>
+              <button type="button" id="btn-free-send" class="btn" style="padding: 0.55rem 1.25rem; font-size: 0.85rem; font-weight: 700; background: #38bdf8; color: #000; border: none; border-radius: 6px; cursor: pointer;">
+                <i class="fa-solid fa-paper-plane"></i> Send Manual Telegram Broadcast
+              </button>
+            </div>
+
+            <!-- Live Telegram Format Preview -->
+            <div style="margin-top: 1.25rem; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 8px; padding: 1rem;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                <div style="font-size: 0.85rem; font-weight: 700; color: #38bdf8;">
+                  <i class="fa-brands fa-telegram"></i> Outbound Telegram Message Format
+                </div>
+                <span style="font-size: 0.72rem; color: #10b981; font-family: var(--font-mono);"><i class="fa-solid fa-image"></i> Automatic Snapshot Attachment Included</span>
+              </div>
+              <div style="white-space: pre-wrap; font-family: var(--font-mono); font-size: 0.8rem; line-height: 1.5; color: #f1f5f9; background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 0.85rem;">🚨 <b>WILDLIFE EMERGENCY: ELEPHANT DETECTED</b>
+🐘 <b>Count:</b> 1 Elephant
+📍 <b>Location:</b> Sector 4 - Mudumalai Corridor
+⏰ <b>Timestamp:</b> Real-time Event
+📷 <b>Evidence:</b> High-resolution ESP32 photo attached
+⚠️ <b>Safety Notice:</b> Avoid approaching corridor sector. Forest response team notified.</div>
+            </div>
+
+            <!-- Transmission History Table -->
+            <div style="margin-top: 1.25rem;">
+              <h3 style="font-size: 0.88rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.5rem;">
+                <i class="fa-solid fa-clock-rotate-left"></i> Telegram Alert Transmission History
+              </h3>
+              <div style="overflow-x: auto; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.06); border-radius: 6px;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.78rem;">
+                  <thead>
+                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.08); text-align: left; color: var(--text-dim);">
+                      <th style="padding: 0.5rem 0.8rem;">Timestamp</th>
+                      <th style="padding: 0.5rem 0.8rem;">Severity</th>
+                      <th style="padding: 0.5rem 0.8rem;">Channel</th>
+                      <th style="padding: 0.5rem 0.8rem;">Recipient</th>
+                      <th style="padding: 0.5rem 0.8rem;">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="free-alert-history-body">
+                    <tr><td colspan="5" style="text-align: center; padding: 1rem; color: var(--text-dim);">Loading alert history...</td></tr>
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
@@ -996,6 +1140,73 @@
     </div>
   </div>
 
+  <!-- Camera Source Switcher Modal -->
+  <div id="camera-modal" class="modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 9999; align-items: center; justify-content: center; backdrop-filter: blur(6px);">
+    <div style="background: #0f172a; border: 1px solid rgba(6, 182, 212, 0.45); border-radius: 14px; width: 92%; max-width: 520px; padding: 1.5rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.9); color: #f8fafc; position: relative;">
+      
+      <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.75rem; margin-bottom: 1rem;">
+        <h3 style="margin: 0; font-size: 1.15rem; display: flex; align-items: center; gap: 0.5rem; color: #06b6d4;">
+          <i class="fa-solid fa-video"></i> Camera Source & Custom IP Setup
+        </h3>
+        <button onclick="closeCameraModal()" style="background: none; border: none; color: #94a3b8; font-size: 1.4rem; cursor: pointer;">&times;</button>
+      </div>
+
+      <!-- Tab Switcher: Custom IP vs Physical Webcams -->
+      <div style="display: flex; gap: 0.5rem; margin-bottom: 1.1rem; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 0.6rem;">
+        <button id="tab-btn-custom-ip" onclick="switchCameraModalTab('custom')" style="flex: 1; padding: 0.5rem; font-size: 0.82rem; font-weight: 700; background: rgba(6, 182, 212, 0.2); border: 1px solid #06b6d4; color: #38bdf8; border-radius: 6px; cursor: pointer; transition: all 0.2s ease;">
+          <i class="fa-solid fa-network-wired"></i> Custom IP / ESP32-CAM
+        </button>
+        <button id="tab-btn-usb-cams" onclick="switchCameraModalTab('usb')" style="flex: 1; padding: 0.5rem; font-size: 0.82rem; font-weight: 600; background: transparent; border: 1px solid rgba(255,255,255,0.1); color: #94a3b8; border-radius: 6px; cursor: pointer; transition: all 0.2s ease;">
+          <i class="fa-solid fa-laptop"></i> Physical USB Cameras
+        </button>
+      </div>
+
+      <!-- Tab Content: Custom IP -->
+      <div id="modal-tab-custom-ip">
+        <label style="display: block; font-size: 0.82rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.4rem;">
+          Enter Network Camera IP / Stream URL:
+        </label>
+        <div style="display: flex; gap: 0.4rem; margin-bottom: 0.65rem;">
+          <input type="text" id="custom-cam-input" placeholder="e.g. 192.168.4.1 or http://192.168.1.50:81/stream" style="flex: 1; padding: 0.6rem 0.85rem; background: #1e293b; border: 1px solid rgba(6,182,212,0.4); border-radius: 6px; color: #fff; font-size: 0.85rem;">
+          <button id="btn-test-custom-ip" onclick="testCustomIPConnection()" style="padding: 0.6rem 0.9rem; background: rgba(6,182,212,0.2); border: 1px solid #06b6d4; border-radius: 6px; color: #06b6d4; font-weight: 600; cursor: pointer; font-size: 0.8rem; display: flex; align-items: center; gap: 0.35rem; white-space: nowrap;">
+            <i class="fa-solid fa-vial"></i> Test
+          </button>
+        </div>
+
+        <!-- Connection Test Feedback Alert -->
+        <div id="custom-ip-test-feedback" style="display: none; padding: 0.6rem 0.85rem; border-radius: 6px; font-size: 0.78rem; margin-bottom: 0.85rem; line-height: 1.4;"></div>
+
+        <!-- Quick Presets -->
+        <div style="margin-bottom: 1.15rem;">
+          <span style="font-size: 0.72rem; color: #94a3b8; display: block; margin-bottom: 0.35rem; font-weight: 600;">QUICK STREAM ENDPOINTS:</span>
+          <div style="display: flex; flex-wrap: wrap; gap: 0.35rem;">
+            <button onclick="applyIPPreset(':81/stream')" style="padding: 0.25rem 0.55rem; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: #cbd5e1; border-radius: 4px; font-size: 0.72rem; cursor: pointer;">ESP32 (:81/stream)</button>
+            <button onclick="applyIPPreset('/stream')" style="padding: 0.25rem 0.55rem; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: #cbd5e1; border-radius: 4px; font-size: 0.72rem; cursor: pointer;">ESP32 (/stream)</button>
+            <button onclick="applyIPPreset(':8080/video')" style="padding: 0.25rem 0.55rem; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: #cbd5e1; border-radius: 4px; font-size: 0.72rem; cursor: pointer;">Phone Webcam (:8080/video)</button>
+            <button onclick="applyIPPreset(':4747/video')" style="padding: 0.25rem 0.55rem; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: #cbd5e1; border-radius: 4px; font-size: 0.72rem; cursor: pointer;">DroidCam (:4747/video)</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab Content: USB Webcams -->
+      <div id="modal-tab-usb-cams" style="display: none;">
+        <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #cbd5e1; margin-bottom: 0.4rem;">
+          Detected Physical Cameras:
+        </label>
+        <div id="detected-cameras-list" style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1.15rem;">
+          <div style="padding: 0.6rem 0.8rem; background: rgba(255,255,255,0.05); border-radius: 6px; font-size: 0.85rem;">
+            Loading connected cameras...
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 0.5rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 0.85rem;">
+        <button onclick="closeCameraModal()" style="padding: 0.45rem 0.9rem; background: transparent; border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; color: #cbd5e1; cursor: pointer; font-size: 0.82rem;">Cancel</button>
+        <button onclick="saveCameraSelection()" style="padding: 0.45rem 1.15rem; background: #06b6d4; border: none; border-radius: 6px; color: #020617; font-weight: 700; cursor: pointer; font-size: 0.82rem;">Apply & Connect</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Leaflet Map JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -1013,12 +1224,13 @@
   <script src="{{ url_for('static', filename='js/map.js') }}"></script>
   <script src="{{ url_for('static', filename='js/dss.js') }}?v=2"></script>
   <script src="{{ url_for('static', filename='js/sensor_monitoring.js') }}"></script>
-  <script src="{{ url_for('static', filename='js/camera_detection.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/camera_detection.js') }}?v=5"></script>
   <script src="{{ url_for('static', filename='js/push_subscription.js') }}"></script>
   <script src="{{ url_for('static', filename='js/alerts.js') }}"></script>
   <script src="{{ url_for('static', filename='js/elephant_popup.js') }}"></script>
   <script src="{{ url_for('static', filename='js/app.js') }}"></script>
   <script src="{{ url_for('static', filename='js/user_management.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/free_alerts.js') }}"></script>
   <script>
     async function handleLogout() {
       try {

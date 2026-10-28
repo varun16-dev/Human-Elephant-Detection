@@ -27,6 +27,7 @@ class CameraAlertMonitor:
     def __init__(self):
         self.last_processed_line = 0
         self.last_processed_timestamp = None
+        self.start_time = time.time()
         
     def get_csv_line_count(self):
         """Get the number of lines in the CSV file"""
@@ -66,6 +67,10 @@ class CameraAlertMonitor:
     def process_detection(self, row):
         """Process a single detection row and send to alert system"""
         try:
+            # Startup grace period: do not send alerts during the first 10 seconds of app start
+            if time.time() - self.start_time < 10:
+                return
+
             # Parse CSV row
             date_val = row[0]
             time_val = row[1]
@@ -78,6 +83,21 @@ class CameraAlertMonitor:
             # Only process if elephant detected
             if detected_val != "YES" or count_val == 0:
                 return
+
+            # Staleness guard: do not process historical detections older than 120 seconds
+            if timestamp_val:
+                try:
+                    clean_ts = timestamp_val.replace('Z', '+00:00')
+                    dt_val = datetime.fromisoformat(clean_ts)
+                    from datetime import timezone, timedelta
+                    if dt_val.tzinfo is None:
+                        dt_val = dt_val.replace(tzinfo=timezone(timedelta(hours=5, minutes=30)))
+                    now_utc = datetime.now(timezone.utc)
+                    diff_s = (now_utc - dt_val.astimezone(timezone.utc)).total_seconds()
+                    if diff_s > 120 or diff_s < -30:
+                        return
+                except Exception:
+                    pass
             
             # Prepare data for API
             csv_row_data = {
@@ -147,9 +167,10 @@ class CameraAlertMonitor:
         print(f"API Endpoint: {API_URL}", flush=True)
         print("Press Ctrl+C to stop", flush=True)
         
-        # Initialize line count
-        self.last_processed_line = self.get_csv_line_count()
-        print(f"Starting from line: {self.last_processed_line}", flush=True)
+        # Initialize line count - skip all existing data rows so no past alert is triggered on launch
+        total_lines = self.get_csv_line_count()
+        self.last_processed_line = max(0, total_lines - 1)
+        print(f"Starting from data row: {self.last_processed_line} (Total lines in file: {total_lines})", flush=True)
         
         # Check if CSV exists
         if not os.path.exists(CSV_PATH):

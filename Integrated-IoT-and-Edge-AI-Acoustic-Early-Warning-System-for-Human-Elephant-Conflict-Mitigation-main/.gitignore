@@ -7,4 +7,32 @@ venv/
 ENV/
 .vercel
 .env
+*.env
+.env.*
+!.env.sms.example
+*.sqlite3
 .DS_Store
+
+# Sensitive configuration & local stores
+free_alert_config.json
+free_alert_history.json
+android_sms_config.json
+android_sms_history.json
+twilio_sms_config.json
+twilio_sms_history.json
+circuitdigest_sms_config.json
+circuitdigest_sms_history.json
+local_detections.json
+synced_detection_timestamps.json
+PyWhatKit_DB.txt
+whatsapp_config.json
+whatsapp_history.json
+scratch/
+*.log
+
+# Large binary model weights (keep in local storage)
+*.pb
+
+# Captured runtime evidence
+static/detections/*.jpg
+static/detections/*.png

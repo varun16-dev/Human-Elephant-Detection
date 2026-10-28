@@ -7,8 +7,8 @@ HARDWARE
 ------------------------------------------------------------
 PIR SENSOR       -> D19
 SOUND SENSOR DO  -> D18
-RELAY (Strobe)   -> D23 (Controls physical strobe light)
-STATUS LED       -> D22 (Local status indicator)
+RELAY            -> D23
+STATUS LED       -> D22
 
 GPS TX           -> ESP32 D16
 GPS RX           -> ESP32 D17
@@ -21,19 +21,11 @@ FUNCTION
 ------------------------------------------------------------
 PIR OR SOUND DETECTION
         ↓
-5 SECOND ALERT (Sensors only - no LED/RELAY control)
+5 SECOND ALERT
+        ↓
+LED + RELAY BLINK
         ↓
 DATA SENT TO YOUR DASHBOARD
-
-LED STROBE CONTROL
-        ↓
-MANUAL DASHBOARD CONTROL ONLY
-        ↓
-ON: Both Relay and LED blink together continuously
-        ↓
-OFF: Both Relay and LED completely OFF immediately
-        ↓
-NO AUTOMATIC TRIGGERS
 
 NO MAKE CLOUD
 NO EXTERNAL CLOUD API
@@ -63,18 +55,6 @@ NO EXTERNAL CLOUD API
 
 #define RELAY_PIN     23
 #define LED_PIN       22
-#define ONBOARD_LED_PIN 2
-
-// ============================================================
-// RELAY CONTROL CONSTANTS
-// ============================================================
-// Active-LOW relay module:
-// RELAY_ON  = LOW   (Relay energized / closed)
-// RELAY_OFF = HIGH  (Relay de-energized / open)
-// ============================================================
-
-#define RELAY_ON  LOW
-#define RELAY_OFF HIGH
 
 #define GPS_RX_PIN    16
 #define GPS_TX_PIN    17
@@ -108,25 +88,23 @@ WebServer server(80);
 Preferences preferences;
 
 
-// ESP32 configuration hotspot
+// ENTER YOUR MOBILE HOTSPOT DETAILS HERE
+const char* HOTSPOT_SSID = "OnePlus Nord CE3";
+const char* HOTSPOT_PASSWORD = "vaha3116";
+
+// Legacy configuration-portal constants.
 const char* CONFIG_AP_SSID = "ESP32_Config";
 const char* CONFIG_AP_PASSWORD = "12345678";
 
 
 // ============================================================
-// YOUR DASHBOARD BACKEND
-// ============================================================
-//
-// This is YOUR dashboard backend.
-//
-// IMPORTANT:
-// If the computer running server.py gets a new IP,
-// change SERVER_URL below.
-//
+// DASHBOARD BACKEND
 // ============================================================
 
-const char* SERVER_URL =
-  "http://10.238.159.122:5000/api/esp32/data";
+const char* DEFAULT_SERVER_URL =
+  "http://10.57.175.122:5000/api/esp32/data";
+
+String dashboardServerURL = DEFAULT_SERVER_URL;
 
 
 // ============================================================
@@ -139,14 +117,9 @@ const char* DEVICE_ID = "ESP32-NODE-01";
 // ============================================================
 // SOUND SENSOR LOGIC
 // ============================================================
-//
-// Current hardware testing uses:
+
 // HIGH = sound detected
 // LOW  = no sound
-//
-// If your sensor is opposite, change HIGH to LOW.
-//
-// ============================================================
 
 #define SOUND_ACTIVE_STATE HIGH
 
@@ -161,9 +134,9 @@ const unsigned long LCD_INTERVAL = 2000;
 
 const unsigned long WIFI_CHECK_INTERVAL = 5000;
 
-
-// Alert duration
 const unsigned long ALERT_DURATION = 5000;
+
+const unsigned long BLINK_INTERVAL = 250;
 
 
 // ============================================================
@@ -176,7 +149,7 @@ bool soundDetected = false;
 
 
 // ============================================================
-// GPS VARIABLES & LIVE LOCATION
+// GPS VARIABLES
 // ============================================================
 
 bool gpsFix = false;
@@ -187,16 +160,9 @@ double longitude = 0.0;
 
 int satellites = 0;
 
-unsigned long lastGpsByteTime = 0;
-
 
 // ============================================================
 // PREVIOUS SENSOR STATES
-// ============================================================
-//
-// Used to detect a NEW event.
-// This prevents the alert timer from restarting
-// continuously while a sensor remains active.
 // ============================================================
 
 bool previousPIR = false;
@@ -212,19 +178,9 @@ bool alertActive = false;
 
 unsigned long alertStartTime = 0;
 
+unsigned long lastBlinkTime = 0;
 
-// ============================================================
-// STROBE CONTROL VARIABLES (Global for state management)
-// ============================================================
-
-bool strobeLightManualControl = false;  // Manual control from dashboard
-bool strobeLightState = false;          // Current strobe light state
-unsigned long strobeBlinkInterval = 250;  // Blink every 250ms
-unsigned long lastStrobeBlinkTime = 0;
-bool strobeBlinkState = false;          // Current blink state
-
-
-
+bool blinkState = false;
 
 
 // ============================================================
@@ -239,6 +195,7 @@ int lcdPage = 0;
 // ============================================================
 
 bool configPortalActive = false;
+bool webServerStarted = false;
 
 
 // ============================================================
@@ -281,10 +238,6 @@ void updateLCD();
 
 void sendDataToDashboard();
 
-void handleActuatorCommand();
-
-void handleManualStrobe();
-
 
 // ============================================================
 // SETUP
@@ -292,11 +245,9 @@ void handleManualStrobe();
 
 void setup()
 {
-
   Serial.begin(115200);
 
   delay(1000);
-
 
   Serial.println();
   Serial.println("========================================");
@@ -304,60 +255,31 @@ void setup()
   Serial.println("========================================");
 
 
-  // ========================================================
   // PIR
-  // ========================================================
 
   pinMode(PIR_PIN, INPUT);
 
 
-  // ========================================================
   // SOUND
-  // ========================================================
 
   pinMode(SOUND_PIN, INPUT);
 
 
-  // ========================================================
   // RELAY
-  // ========================================================
 
   pinMode(RELAY_PIN, OUTPUT);
 
-  // Force relay OFF at startup
-  digitalWrite(RELAY_PIN, RELAY_OFF);
+  digitalWrite(RELAY_PIN, LOW);
 
 
-  // ========================================================
   // LED
-  // ========================================================
 
   pinMode(LED_PIN, OUTPUT);
-  pinMode(ONBOARD_LED_PIN, OUTPUT);
 
-  // LED OFF at startup
   digitalWrite(LED_PIN, LOW);
-  digitalWrite(ONBOARD_LED_PIN, LOW);
 
 
-  // ========================================================
-  // INITIALIZE STROBE STATE
-  // ========================================================
-
-  strobeLightManualControl = false;
-  strobeLightState = false;
-  strobeBlinkState = false;
-  lastStrobeBlinkTime = 0;
-
-  // Force hardware OFF immediately at startup
-  digitalWrite(RELAY_PIN, RELAY_OFF);
-  digitalWrite(LED_PIN, LOW);
-  digitalWrite(ONBOARD_LED_PIN, LOW);
-
-
-  // ========================================================
   // LCD
-  // ========================================================
 
   Wire.begin(
     LCD_SDA_PIN,
@@ -379,9 +301,7 @@ void setup()
   delay(2000);
 
 
-  // ========================================================
   // GPS
-  // ========================================================
 
   GPSSerial.begin(
     9600,
@@ -393,28 +313,30 @@ void setup()
   Serial.println("GPS Serial Started");
 
 
-  // ========================================================
-  // WIFI
-  // ========================================================
+  // CONNECT TO MOBILE HOTSPOT
 
-  bool connected =
-    connectToSavedWiFi();
-
+  bool connected = connectToSavedWiFi();
 
   if (!connected)
   {
-
     Serial.println();
-    Serial.println("No working WiFi found.");
+    Serial.println("Could not connect to the phone hotspot.");
+    Serial.println("Check HOTSPOT_SSID and HOTSPOT_PASSWORD in the code.");
 
-    startConfigPortal();
+    lcd.clear();
+
+    lcd.setCursor(0, 0);
+    lcd.print("Hotspot Failed");
+
+    lcd.setCursor(0, 1);
+    lcd.print("Check WiFi info");
+
+    delay(3000);
   }
-
   else
   {
-
     Serial.println();
-    Serial.println("Using saved WiFi configuration.");
+    Serial.println("Connected to the configured hotspot.");
 
     lcd.clear();
 
@@ -428,6 +350,26 @@ void setup()
   }
 
 
+  // START WEB SERVER
+
+  if (!webServerStarted)
+  {
+    server.on("/", HTTP_GET, handleRoot);
+    server.on("/save", HTTP_POST, handleSave);
+
+    server.begin();
+
+    webServerStarted = true;
+  }
+
+  Serial.print("ESP32 network address: http://");
+
+  Serial.println(
+    WiFi.status() == WL_CONNECTED
+      ? WiFi.localIP().toString()
+      : String("Not connected")
+  );
+
   lcd.clear();
 
 
@@ -438,32 +380,16 @@ void setup()
 
   Serial.println("PIR       : D19");
   Serial.println("SOUND     : D18");
-  Serial.println("RELAY     : D23 (Physical Strobe - active-HIGH)");
-  Serial.println("LED       : D22 (Status LED - blinks with relay)");
+  Serial.println("RELAY     : D23");
+  Serial.println("LED       : D22");
   Serial.println("GPS RX    : D16");
   Serial.println("GPS TX    : D17");
   Serial.println("LCD SDA   : D25");
   Serial.println("LCD SCL   : D26");
 
   Serial.println();
-  Serial.println("LED STROBE: MANUAL CONTROL ONLY");
-  Serial.println("ON: Both relay and LED blink together");
-  Serial.println("OFF: Both relay and LED completely OFF immediately");
   Serial.println("Dashboard:");
-  Serial.println(SERVER_URL);
-
-  // ========================================================
-  // START WEB SERVER FOR ACTUATOR COMMANDS
-  // ========================================================
-  
-  server.on(
-    "/actuator",
-    HTTP_POST,
-    handleActuatorCommand
-  );
-  
-  server.begin();
-  Serial.println("Web server started for actuator commands");
+  Serial.println(dashboardServerURL);
 
   Serial.println("========================================");
 }
@@ -475,76 +401,47 @@ void setup()
 
 void loop()
 {
-
-  // ========================================================
   // CONFIGURATION SERVER
-  // ========================================================
 
-  if (configPortalActive)
+  if (webServerStarted)
   {
     server.handleClient();
   }
-  else
-  {
-    // Always handle web server requests for actuator commands
-    server.handleClient();
-  }
 
 
-  // ========================================================
   // READ GPS
-  // ========================================================
 
   readGPS();
 
 
-  // ========================================================
   // READ PIR
-  // ========================================================
 
   readPIR();
 
 
-  // ========================================================
   // READ SOUND
-  // ========================================================
 
   readSound();
 
 
-  // ========================================================
   // HANDLE ALERT
-  // ========================================================
 
   handleAlert();
 
 
-  // ========================================================
-  // HANDLE MANUAL STROBE CONTROL
-  // ========================================================
-
-  handleManualStrobe();
-
-
-  // ========================================================
   // WIFI MONITOR
-  // ========================================================
 
   if (
     millis() - lastWiFiCheck >=
     WIFI_CHECK_INTERVAL
   )
   {
-
     lastWiFiCheck = millis();
-
 
     if (WiFi.status() != WL_CONNECTED)
     {
-
       Serial.println();
       Serial.println("WiFi disconnected!");
-
 
       lcd.clear();
 
@@ -554,55 +451,41 @@ void loop()
       lcd.setCursor(0, 1);
       lcd.print("Reconnecting...");
 
-
-      bool connected =
-        connectToSavedWiFi();
-
+      bool connected = connectToSavedWiFi();
 
       if (!connected)
       {
-
-        Serial.println(
-          "Reconnection failed."
-        );
-
-        startConfigPortal();
+        Serial.println("Reconnection failed.");
+        Serial.println("Will retry the configured phone hotspot automatically.");
       }
     }
   }
 
 
-  // ========================================================
   // LCD UPDATE
-  // ========================================================
 
   if (
     millis() - lastLCDTime >=
     LCD_INTERVAL
   )
   {
-
     lastLCDTime = millis();
 
     updateLCD();
   }
 
 
-  // ========================================================
   // SEND DATA TO DASHBOARD
-  // ========================================================
 
   if (
     millis() - lastSendTime >=
     SEND_INTERVAL
   )
   {
-
     lastSendTime = millis();
 
     sendDataToDashboard();
   }
-
 
   delay(10);
 }
@@ -614,10 +497,7 @@ void loop()
 
 void readPIR()
 {
-
-  int state =
-    digitalRead(PIR_PIN);
-
+  int state = digitalRead(PIR_PIN);
 
   if (state == HIGH)
   {
@@ -636,15 +516,9 @@ void readPIR()
 
 void readSound()
 {
+  int state = digitalRead(SOUND_PIN);
 
-  int state =
-    digitalRead(SOUND_PIN);
-
-
-  if (
-    state ==
-    SOUND_ACTIVE_STATE
-  )
+  if (state == SOUND_ACTIVE_STATE)
   {
     soundDetected = true;
   }
@@ -664,17 +538,19 @@ void readGPS()
   while (GPSSerial.available() > 0)
   {
     char c = GPSSerial.read();
+
     gps.encode(c);
-    lastGpsByteTime = millis();
   }
 
-  // ========================================================
+
   // VALID GPS LOCATION
-  // ========================================================
+
   if (gps.location.isValid())
   {
     gpsFix = true;
+
     latitude = gps.location.lat();
+
     longitude = gps.location.lng();
 
     if (gps.satellites.isValid())
@@ -699,204 +575,185 @@ void readGPS()
 //
 // PIR OR SOUND = ALERT
 //
-// NOTE: LED/RELAY automatic triggering REMOVED - strobe is now manual only
+// LED    -> BLINK
+// RELAY  -> BLINK
+// Duration = 5 seconds
 // ============================================================
 
 void handleAlert()
 {
-
-  // ========================================================
   // NEW PIR DETECTION
-  // ========================================================
 
   bool newPIRDetection =
     pirDetected &&
     !previousPIR;
 
 
-  // ========================================================
   // NEW SOUND DETECTION
-  // ========================================================
 
   bool newSoundDetection =
     soundDetected &&
     !previousSound;
 
 
-  // ========================================================
-  // START ALERT (Sensors only - no LED/RELAY control)
-  // ========================================================
+  // START ALERT
 
-  if (newPIRDetection || newSoundDetection)
+  if (
+    newPIRDetection ||
+    newSoundDetection
+  )
   {
-
     alertActive = true;
 
-    alertStartTime =
-      millis();
+    alertStartTime = millis();
 
+    lastBlinkTime = millis();
+
+    blinkState = true;
+
+    digitalWrite(LED_PIN, HIGH);
+
+    digitalWrite(RELAY_PIN, HIGH);
 
     Serial.println();
     Serial.println("========================================");
     Serial.println("           !!! ALERT !!!");
     Serial.println("========================================");
 
-
     if (newPIRDetection)
     {
-      Serial.println(
-        "PIR: DETECTED"
-      );
+      Serial.println("PIR: DETECTED");
     }
-
 
     if (newSoundDetection)
     {
-      Serial.println(
-        "SOUND: DETECTED"
-      );
+      Serial.println("SOUND: DETECTED");
     }
 
-
-    Serial.println(
-      "Duration: 5 seconds"
-    );
+    Serial.println("LED: BLINKING");
+    Serial.println("RELAY: BLINKING");
+    Serial.println("Duration: 5 seconds");
   }
 
 
-  // ========================================================
-  // RUN ALERT (Sensors only - no LED/RELAY control)
-  // ========================================================
+  // RUN ALERT
 
   if (alertActive)
   {
+    // BLINK
 
-    // ------------------------------------------------------
+    if (
+      millis() - lastBlinkTime >=
+      BLINK_INTERVAL
+    )
+    {
+      lastBlinkTime = millis();
+
+      blinkState = !blinkState;
+
+      digitalWrite(LED_PIN, blinkState);
+
+      digitalWrite(RELAY_PIN, blinkState);
+    }
+
+
     // STOP AFTER 5 SECONDS
-    // ------------------------------------------------------
 
     if (
       millis() - alertStartTime >=
       ALERT_DURATION
     )
     {
-
       alertActive = false;
 
+      blinkState = false;
+
+      digitalWrite(LED_PIN, LOW);
+
+      digitalWrite(RELAY_PIN, LOW);
 
       Serial.println();
       Serial.println("ALERT ENDED");
+      Serial.println("LED: OFF");
+      Serial.println("RELAY: OFF");
     }
   }
 
 
-  // ========================================================
   // SAVE CURRENT SENSOR STATES
-  // ========================================================
 
-  previousPIR =
-    pirDetected;
+  previousPIR = pirDetected;
 
-  previousSound =
-    soundDetected;
+  previousSound = soundDetected;
 }
 
 
 // ============================================================
 // LCD UPDATE
+// GPS IS NOT DISPLAYED ON THE LCD
+// GPS DATA STILL GOES TO THE DASHBOARD
 // ============================================================
 
 void updateLCD()
 {
-
   lcd.clear();
 
-
-  // ========================================================
   // ALERT SCREEN
-  // ========================================================
 
   if (alertActive)
   {
-
     lcd.setCursor(0, 0);
-
     lcd.print("!!! ALERT !!!");
-
 
     lcd.setCursor(0, 1);
 
-
-    if (
-      pirDetected &&
-      soundDetected
-    )
+    if (pirDetected && soundDetected)
     {
-
       lcd.print("PIR + SOUND");
     }
-
     else if (pirDetected)
     {
-
       lcd.print("PIR DETECTED");
     }
-
     else if (soundDetected)
     {
-
       lcd.print("SOUND DETECTED");
     }
-
     else
     {
-
       lcd.print("DETECTION");
     }
-
 
     return;
   }
 
 
-  // ========================================================
-  // PAGE 0
-  // ========================================================
+  // PAGE 0: SENSOR STATUS
 
   if (lcdPage == 0)
   {
-
     lcd.setCursor(0, 0);
 
     lcd.print("PIR:");
-
-    if (pirDetected)
-      lcd.print("YES ");
-    else
-      lcd.print("NO  ");
-
+    lcd.print(pirDetected ? "YES " : "NO  ");
 
     lcd.print("S:");
-
-    if (soundDetected)
-      lcd.print("YES");
-    else
-      lcd.print("NO");
-
+    lcd.print(soundDetected ? "YES" : "NO ");
 
     lcd.setCursor(0, 1);
 
-
-    if (pirDetected)
+    if (pirDetected && soundDetected)
+    {
+      lcd.print("PIR + Sound Det.");
+    }
+    else if (pirDetected)
     {
       lcd.print("Motion Detected");
     }
-
     else if (soundDetected)
     {
       lcd.print("Sound Detected");
     }
-
     else
     {
       lcd.print("No Detection");
@@ -904,143 +761,61 @@ void updateLCD()
   }
 
 
-  // ========================================================
-  // PAGE 1
-  // ========================================================
+  // PAGE 1: WIFI STATUS
 
   else if (lcdPage == 1)
   {
-
     lcd.setCursor(0, 0);
 
-    if (gpsFix)
+    if (WiFi.status() == WL_CONNECTED)
     {
-      lcd.print("GPS: FIXED");
-    }
-    else
-    {
-      lcd.print("Searching...");
-    }
-
-
-    lcd.setCursor(0, 1);
-
-    if (gpsFix)
-    {
-
-      lcd.print("SAT:");
-
-      lcd.print(
-        satellites
-      );
-    }
-    else
-    {
-
-      lcd.print("No Location");
-    }
-  }
-
-
-  // ========================================================
-  // PAGE 2
-  // ========================================================
-
-  else if (lcdPage == 2)
-  {
-
-    lcd.setCursor(0, 0);
-
-    if (gpsFix)
-    {
-
-      lcd.print("LAT:");
-
-      lcd.print(
-        latitude,
-        4
-      );
-    }
-    else
-    {
-
-      lcd.print("Searching...");
-    }
-
-
-    lcd.setCursor(0, 1);
-
-    if (gpsFix)
-    {
-
-      lcd.print("LON:");
-
-      lcd.print(
-        longitude,
-        4
-      );
-    }
-    else
-    {
-
-      lcd.print("No Location");
-    }
-  }
-
-
-  // ========================================================
-  // PAGE 3
-  // ========================================================
-
-  else if (lcdPage == 3)
-  {
-
-    lcd.setCursor(0, 0);
-
-    if (
-      WiFi.status() ==
-      WL_CONNECTED
-    )
-    {
-
       lcd.print("WiFi: CONNECTED");
     }
     else
     {
-
       lcd.print("WiFi: OFFLINE");
     }
 
-
     lcd.setCursor(0, 1);
 
-    if (
-      WiFi.status() ==
-      WL_CONNECTED
-    )
+    if (WiFi.status() == WL_CONNECTED)
     {
-
       lcd.print("RSSI:");
-
-      lcd.print(
-        WiFi.RSSI()
-      );
+      lcd.print(WiFi.RSSI());
+      lcd.print(" dBm");
     }
     else
     {
-
       lcd.print("No Connection");
     }
   }
 
 
-  // ========================================================
-  // NEXT PAGE
-  // ========================================================
+  // PAGE 2: SYSTEM STATUS
+
+  else if (lcdPage == 2)
+  {
+    lcd.setCursor(0, 0);
+    lcd.print("Wildlife Monitor");
+
+    lcd.setCursor(0, 1);
+
+    if (WiFi.status() == WL_CONNECTED)
+    {
+      lcd.print("System Online");
+    }
+    else
+    {
+      lcd.print("System Offline");
+    }
+  }
+
+
+  // ROTATE THROUGH LCD PAGES
 
   lcdPage++;
 
-  if (lcdPage > 3)
+  if (lcdPage > 2)
   {
     lcdPage = 0;
   }
@@ -1048,350 +823,215 @@ void updateLCD()
 
 
 // ============================================================
-// SEND DATA TO YOUR DASHBOARD
+// SEND DATA TO DASHBOARD
 // ============================================================
 
 void sendDataToDashboard()
 {
-
-  // ========================================================
   // WIFI CHECK
-  // ========================================================
 
-  if (
-    WiFi.status() !=
-    WL_CONNECTED
-  )
+  if (WiFi.status() != WL_CONNECTED)
   {
-
-    Serial.println(
-      "Dashboard: WiFi offline"
-    );
+    Serial.println("Dashboard: WiFi offline");
 
     return;
   }
 
 
-  // ========================================================
   // HTTP
-  // ========================================================
 
   HTTPClient http;
 
+  http.setConnectTimeout(5000);
+  http.setTimeout(5000);
 
-  http.begin(
-    SERVER_URL
-  );
+  if (!http.begin(dashboardServerURL))
+  {
+    Serial.println("Dashboard HTTP initialization failed.");
 
+    return;
+  }
 
-  http.setTimeout(3000);
-
-
-  http.addHeader(
-    "Content-Type",
-    "application/json"
-  );
+  http.addHeader("Content-Type", "application/json");
 
 
-  // ========================================================
   // JSON
-  // ========================================================
 
   String json = "{";
 
 
   // DEVICE ID
+
   json += "\"deviceId\":\"";
   json += DEVICE_ID;
   json += "\",";
 
 
   // PIR
+
   json += "\"pir\":";
 
-  json +=
-    pirDetected
-    ? "true"
-    : "false";
+  json += pirDetected ? "true" : "false";
 
   json += ",";
 
 
   // SOUND
+
   json += "\"sound\":";
 
-  json +=
-    soundDetected
-    ? "true"
-    : "false";
+  json += soundDetected ? "true" : "false";
 
   json += ",";
 
 
   // GPS FIX
+
   json += "\"gpsFix\":";
 
-  json +=
-    gpsFix
-    ? "true"
-    : "false";
+  json += gpsFix ? "true" : "false";
 
   json += ",";
 
 
   // LATITUDE
+
   json += "\"latitude\":";
 
-  if (gpsFix)
-  {
-    json += String(
-      latitude,
-      6
-    );
-  }
-  else
-  {
-    json += "null";
-  }
+  json += String(latitude, 6);
 
   json += ",";
 
 
   // LONGITUDE
+
   json += "\"longitude\":";
 
-  if (gpsFix)
-  {
-    json += String(
-      longitude,
-      6
-    );
-  }
-  else
-  {
-    json += "null";
-  }
+  json += String(longitude, 6);
 
   json += ",";
 
 
   // SATELLITES
+
   json += "\"satellites\":";
 
-  if (gpsFix)
-  {
-    json += String(
-      satellites
-    );
-  }
-  else
-  {
-    json += "0";
-  }
+  json += String(satellites);
 
   json += ",";
 
 
   // ALERT
+
   json += "\"alert\":";
 
-  json +=
-    alertActive
-    ? "true"
-    : "false";
+  json += alertActive ? "true" : "false";
 
   json += ",";
 
 
   // WIFI RSSI
+
   json += "\"wifiRSSI\":";
 
-  json += String(
-    WiFi.RSSI()
-  );
-
-  json += ",";
-
-
-  // STROBE LIGHT STATE
-  json += "\"ledStrobe\":";
-
-  json += strobeLightState ? "true" : "false";
-
-  json += ",";
-
-
-  // STROBE MANUAL CONTROL
-  json += "\"strobeManualControl\":";
-
-  json += strobeLightManualControl ? "true" : "false";
+  json += String(WiFi.RSSI());
 
 
   // CLOSE JSON
+
   json += "}";
 
 
-  // ========================================================
   // DEBUG
-  // ========================================================
 
   Serial.println();
-  Serial.println("----------------------------------------");
-
-  // GPS Diagnostics
-  bool gpsUartReceiving = (lastGpsByteTime > 0 && (millis() - lastGpsByteTime < 3000));
-  if (gpsUartReceiving)
-  {
-    Serial.println("GPS UART DATA: RECEIVING");
-  }
-  else
-  {
-    Serial.println("GPS UART DATA: NO DATA");
-  }
-
-  if (gpsFix)
-  {
-    Serial.println("GPS FIX: YES");
-    Serial.print("Latitude: ");
-    Serial.println(latitude, 6);
-    Serial.print("Longitude: ");
-    Serial.println(longitude, 6);
-    Serial.print("Satellites: ");
-    Serial.println(satellites);
-  }
-  else
-  {
-    Serial.println("GPS FIX: NO");
-    Serial.println("Latitude: unavailable");
-    Serial.println("Longitude: unavailable");
-    Serial.println("Satellites: 0");
-  }
-
   Serial.println("----------------------------------------");
   Serial.println("Sending data to YOUR dashboard:");
   Serial.println(json);
 
 
-  // ========================================================
   // POST
-  // ========================================================
 
-  int responseCode =
-    http.POST(
-      json
-    );
+  int responseCode = http.POST(json);
 
-
-  if (
-    responseCode > 0
-  )
+  if (responseCode > 0)
   {
+    Serial.print("Dashboard HTTP: ");
+    Serial.println(responseCode);
 
-    Serial.print(
-      "Dashboard HTTP: "
-    );
+    String response = http.getString();
 
-    Serial.println(
-      responseCode
-    );
-
-
-    String response =
-      http.getString();
-
-
-    Serial.print(
-      "Dashboard response: "
-    );
-
-    Serial.println(
-      response
-    );
+    Serial.print("Dashboard response: ");
+    Serial.println(response);
   }
-
   else
   {
+    Serial.print("Dashboard connection error: ");
+    Serial.println(responseCode);
 
-    Serial.print(
-      "Dashboard connection error: "
-    );
+    Serial.print("HTTP error detail: ");
+    Serial.println(http.errorToString(responseCode));
 
-    Serial.println(
-      responseCode
-    );
+    Serial.print("ESP32 Wi-Fi IP: ");
+    Serial.println(WiFi.localIP());
+
+    Serial.print("Dashboard URL: ");
+    Serial.println(dashboardServerURL);
+
+    Serial.println("Check the computer IP, backend status, port 5000, and firewall.");
   }
-
 
   http.end();
 }
 
 
 // ============================================================
-// CONNECT TO SAVED WIFI
+// CONNECT TO MOBILE HOTSPOT
 // ============================================================
 
 bool connectToSavedWiFi()
 {
+  // ALWAYS USE CURRENT DEFAULT_SERVER_URL FIRST TO PREVENT STALE SAVED IP
+  dashboardServerURL = DEFAULT_SERVER_URL;
 
-  preferences.begin(
-    "wifi",
-    true
-  );
+  // USE HOTSPOT CREDENTIALS FROM CODE
 
+  String ssid = HOTSPOT_SSID;
 
-  String ssid =
-    preferences.getString(
-      "ssid",
-      ""
-    );
-
-
-  String password =
-    preferences.getString(
-      "password",
-      ""
-    );
-
-
-  preferences.end();
-
+  String password = HOTSPOT_PASSWORD;
 
   if (
-    ssid.length() == 0
+    ssid.length() == 0 ||
+    ssid == "YOUR_PHONE_HOTSPOT_NAME"
   )
   {
+    Serial.println("Set HOTSPOT_SSID in the code before uploading.");
 
-    Serial.println(
-      "No saved WiFi."
-    );
+    return false;
+  }
+
+  if (password == "YOUR_PHONE_HOTSPOT_PASSWORD")
+  {
+    Serial.println("Set HOTSPOT_PASSWORD in the code before uploading.");
 
     return false;
   }
 
 
   Serial.println();
-  Serial.println(
-    "Connecting to saved WiFi..."
-  );
+  Serial.println("Connecting to your phone hotspot...");
 
-  Serial.print(
-    "SSID: "
-  );
-
-  Serial.println(
-    ssid
-  );
+  Serial.print("Hotspot SSID: ");
+  Serial.println(ssid);
 
 
-  WiFi.mode(
-    WIFI_STA
-  );
+  WiFi.mode(WIFI_STA);
 
+  WiFi.setAutoReconnect(true);
 
   WiFi.disconnect();
 
   delay(500);
-
 
   WiFi.begin(
     ssid.c_str(),
@@ -1399,56 +1039,35 @@ bool connectToSavedWiFi()
   );
 
 
-  unsigned long startTime =
-    millis();
-
+  unsigned long startTime = millis();
 
   while (
     WiFi.status() != WL_CONNECTED &&
     millis() - startTime < 20000
   )
   {
-
     delay(500);
 
     Serial.print(".");
   }
 
-
   Serial.println();
 
 
-  if (
-    WiFi.status() ==
-    WL_CONNECTED
-  )
+  if (WiFi.status() == WL_CONNECTED)
   {
+    Serial.println("Phone hotspot connected!");
 
-    Serial.println(
-      "WiFi connected!"
-    );
+    Serial.print("ESP32 IP: ");
+    Serial.println(WiFi.localIP());
 
-    Serial.print(
-      "ESP32 IP: "
-    );
-
-    Serial.println(
-      WiFi.localIP()
-    );
-
-
-    configPortalActive =
-      false;
-
+    configPortalActive = false;
 
     return true;
   }
 
 
-  Serial.println(
-    "WiFi connection failed."
-  );
-
+  Serial.println("Hotspot connection failed. Check SSID, password, and 2.4 GHz hotspot setting.");
 
   return false;
 }
@@ -1460,112 +1079,54 @@ bool connectToSavedWiFi()
 
 void startConfigPortal()
 {
-
   Serial.println();
-  Serial.println(
-    "Starting ESP32 WiFi setup..."
+  Serial.println("Starting ESP32 WiFi setup...");
+
+  WiFi.mode(WIFI_AP);
+
+  bool result = WiFi.softAP(
+    CONFIG_AP_SSID,
+    CONFIG_AP_PASSWORD
   );
-
-
-  WiFi.mode(
-    WIFI_AP
-  );
-
-
-  bool result =
-    WiFi.softAP(
-      CONFIG_AP_SSID,
-      CONFIG_AP_PASSWORD
-    );
-
 
   if (!result)
   {
-
-    Serial.println(
-      "Failed to start WiFi AP."
-    );
+    Serial.println("Failed to start WiFi AP.");
 
     return;
   }
 
-
-  configPortalActive =
-    true;
-
+  configPortalActive = true;
 
   Serial.println();
-  Serial.println(
-    "========================================"
-  );
+  Serial.println("========================================");
+  Serial.println("        WIFI CONFIGURATION");
+  Serial.println("========================================");
 
-  Serial.println(
-    "        WIFI CONFIGURATION"
-  );
+  Serial.print("Connect phone to: ");
+  Serial.println(CONFIG_AP_SSID);
 
-  Serial.println(
-    "========================================"
-  );
+  Serial.print("Password: ");
+  Serial.println(CONFIG_AP_PASSWORD);
 
-
-  Serial.print(
-    "Connect phone to: "
-  );
-
-  Serial.println(
-    CONFIG_AP_SSID
-  );
+  Serial.print("Open: ");
+  Serial.println("192.168.4.1");
 
 
-  Serial.print(
-    "Password: "
-  );
-
-  Serial.println(
-    CONFIG_AP_PASSWORD
-  );
-
-
-  Serial.print(
-    "Open: "
-  );
-
-  Serial.println(
-    "192.168.4.1"
-  );
-
-
-  // ========================================================
   // ROUTES
-  // ========================================================
 
-  server.on(
-    "/",
-    HTTP_GET,
-    handleRoot
-  );
+  if (!webServerStarted)
+  {
+    server.on("/", HTTP_GET, handleRoot);
+    server.on("/save", HTTP_POST, handleSave);
 
+    server.begin();
 
-  server.on(
-    "/save",
-    HTTP_POST,
-    handleSave
-  );
+    webServerStarted = true;
+  }
 
 
-  server.on(
-    "/actuator",
-    HTTP_POST,
-    handleActuatorCommand
-  );
-
-
-  server.begin();
-
-
-  // ========================================================
   // LCD
-  // ========================================================
 
   lcd.clear();
 
@@ -1583,7 +1144,6 @@ void startConfigPortal()
 
 void handleRoot()
 {
-
   String html = R"rawliteral(
 
 <!DOCTYPE html>
@@ -1659,7 +1219,19 @@ required
 <input
 type="password"
 name="password"
+autocomplete="current-password"
 >
+
+<label>Dashboard Backend URL</label>
+
+<input
+type="url"
+name="backendUrl"
+required
+value="__BACKEND_URL__"
+>
+
+<p>Example: http://192.168.1.100:5000/api/esp32/data</p>
 
 <button type="submit">
 Save & Connect
@@ -1676,6 +1248,15 @@ Save & Connect
 )rawliteral";
 
 
+  preferences.begin("dashboard", true);
+
+  String savedBackendUrl =
+    preferences.getString("url", DEFAULT_SERVER_URL);
+
+  preferences.end();
+
+  html.replace("__BACKEND_URL__", savedBackendUrl);
+
   server.send(
     200,
     "text/html",
@@ -1690,12 +1271,8 @@ Save & Connect
 
 void handleSave()
 {
-
-  if (
-    !server.hasArg("ssid")
-  )
+  if (!server.hasArg("ssid"))
   {
-
     server.send(
       400,
       "text/plain",
@@ -1706,42 +1283,73 @@ void handleSave()
   }
 
 
-  String ssid =
-    server.arg("ssid");
+  String ssid = server.arg("ssid");
+
+  String password = server.arg("password");
+
+  String backendUrl = server.arg("backendUrl");
+
+  backendUrl.trim();
 
 
-  String password =
-    server.arg("password");
+  if (
+    backendUrl.length() == 0 ||
+    !backendUrl.startsWith("http://")
+  )
+  {
+    server.send(
+      400,
+      "text/plain",
+      "Invalid dashboard URL. Use an http:// address."
+    );
+
+    return;
+  }
 
 
-  // ========================================================
-  // SAVE
-  // ========================================================
+  // KEEP OLD PASSWORD IF THE SAME SSID IS SUBMITTED
 
-  preferences.begin(
-    "wifi",
-    false
-  );
+  preferences.begin("wifi", true);
 
+  String oldSSID = preferences.getString("ssid", "");
 
-  preferences.putString(
-    "ssid",
-    ssid
-  );
-
-
-  preferences.putString(
-    "password",
-    password
-  );
-
+  String oldPassword = preferences.getString("password", "");
 
   preferences.end();
 
 
-  // ========================================================
+  if (
+    password.length() == 0 &&
+    ssid == oldSSID
+  )
+  {
+    password = oldPassword;
+  }
+
+
+  // SAVE WIFI CREDENTIALS
+
+  preferences.begin("wifi", false);
+
+  preferences.putString("ssid", ssid);
+
+  preferences.putString("password", password);
+
+  preferences.end();
+
+
+  // SAVE DASHBOARD URL
+
+  preferences.begin("dashboard", false);
+
+  preferences.putString("url", backendUrl);
+
+  preferences.end();
+
+  dashboardServerURL = backendUrl;
+
+
   // RESPONSE
-  // ========================================================
 
   server.send(
     200,
@@ -1750,22 +1358,15 @@ void handleSave()
     "<p>ESP32 is connecting...</p>"
   );
 
-
   delay(1500);
 
 
-  WiFi.softAPdisconnect(
-    true
-  );
+  WiFi.softAPdisconnect(true);
+
+  configPortalActive = false;
 
 
-  configPortalActive =
-    false;
-
-
-  // ========================================================
   // CONNECT
-  // ========================================================
 
   connectToWiFi(
     ssid,
@@ -1783,17 +1384,10 @@ bool connectToWiFi(
   String password
 )
 {
-
   Serial.println();
-  Serial.println(
-    "Connecting to new WiFi..."
-  );
+  Serial.println("Connecting to new WiFi...");
 
-
-  WiFi.mode(
-    WIFI_STA
-  );
-
+  WiFi.mode(WIFI_STA);
 
   WiFi.begin(
     ssid.c_str(),
@@ -1801,44 +1395,27 @@ bool connectToWiFi(
   );
 
 
-  unsigned long startTime =
-    millis();
-
+  unsigned long startTime = millis();
 
   while (
     WiFi.status() != WL_CONNECTED &&
     millis() - startTime < 20000
   )
   {
-
     delay(500);
 
     Serial.print(".");
   }
 
-
   Serial.println();
 
 
-  if (
-    WiFi.status() ==
-    WL_CONNECTED
-  )
+  if (WiFi.status() == WL_CONNECTED)
   {
+    Serial.println("WiFi connected successfully!");
 
-    Serial.println(
-      "WiFi connected successfully!"
-    );
-
-
-    Serial.print(
-      "ESP32 IP: "
-    );
-
-    Serial.println(
-      WiFi.localIP()
-    );
-
+    Serial.print("ESP32 IP: ");
+    Serial.println(WiFi.localIP());
 
     lcd.clear();
 
@@ -1848,20 +1425,15 @@ bool connectToWiFi(
     lcd.setCursor(0, 1);
     lcd.print(WiFi.localIP());
 
-
     delay(3000);
 
     lcd.clear();
-
 
     return true;
   }
 
 
-  Serial.println(
-    "New WiFi connection failed."
-  );
-
+  Serial.println("New WiFi connection failed.");
 
   lcd.clear();
 
@@ -1871,168 +1443,9 @@ bool connectToWiFi(
   lcd.setCursor(0, 1);
   lcd.print("Try Again");
 
-
   delay(2000);
-
 
   startConfigPortal();
 
-
   return false;
-}
-
-
-// ============================================================
-// HANDLE ACTUATOR COMMAND FROM DASHBOARD
-// ============================================================
-
-void handleActuatorCommand()
-{
-  Serial.println();
-  Serial.println("----------------------------------------");
-  Serial.println("Received actuator command from dashboard");
-
-
-  // Check if request has JSON body
-  if (!server.hasArg("plain"))
-  {
-    Serial.println("Error: No JSON body received");
-    server.send(400, "application/json", "{\"status\":\"error\",\"message\":\"No JSON body\"}");
-    return;
-  }
-
-
-  String jsonBody = server.arg("plain");
-  Serial.print("JSON received: ");
-  Serial.println(jsonBody);
-
-
-  // Parse JSON (simple manual parsing for this use case)
-  String actuator = "";
-  String action = "";
-
-
-  // Extract actuator
-  int actuatorIndex = jsonBody.indexOf("\"actuator\":");
-  if (actuatorIndex >= 0)
-  {
-    int valueStart = jsonBody.indexOf("\"", actuatorIndex + 11) + 1; // Skip ":"
-    int valueEnd = jsonBody.indexOf("\"", valueStart);
-    if (valueStart > 0 && valueEnd > valueStart)
-    {
-      actuator = jsonBody.substring(valueStart, valueEnd);
-    }
-  }
-
-
-  // Extract action
-  int actionIndex = jsonBody.indexOf("\"action\":");
-  if (actionIndex >= 0)
-  {
-    int valueStart = jsonBody.indexOf("\"", actionIndex + 9) + 1; // Skip ":"
-    int valueEnd = jsonBody.indexOf("\"", valueStart);
-    if (valueStart > 0 && valueEnd > valueStart)
-    {
-      action = jsonBody.substring(valueStart, valueEnd);
-    }
-  }
-
-
-  Serial.print("Actuator: ");
-  Serial.println(actuator);
-  Serial.print("Action: ");
-  Serial.println(action);
-
-
-  // Process strobe light command
-  if (actuator == "strobe_light")
-  {
-    if (action == "on" || (action == "toggle" && !strobeLightState))
-    {
-      strobeLightManualControl = true;
-      strobeLightState = true;
-      strobeBlinkState = false;
-      lastStrobeBlinkTime = millis();
-      
-      // Initialize relay and LEDs in OFF state - handleManualStrobe() performs the blinking cycle
-      digitalWrite(RELAY_PIN, RELAY_OFF);
-      digitalWrite(LED_PIN, LOW);
-      digitalWrite(ONBOARD_LED_PIN, LOW);
-      
-      Serial.println("STROBE LIGHT: ON (Continuous blinking started)");
-      
-      String response = "{\"status\":\"success\",\"actuator\":\"strobe_light\",\"state\":\"on\",\"message\":\"Strobe light turned ON - continuous blinking\"}";
-      server.send(200, "application/json", response);
-    }
-    else if (action == "off" || (action == "toggle" && strobeLightState))
-    {
-      // IMMEDIATELY force OFF - do this first
-      strobeLightManualControl = false;
-      strobeLightState = false;
-      strobeBlinkState = false;
-      
-      // IMMEDIATELY turn OFF both relay and status LED
-      digitalWrite(RELAY_PIN, RELAY_OFF);
-      digitalWrite(LED_PIN, LOW);
-      digitalWrite(ONBOARD_LED_PIN, LOW);
-      
-      Serial.println("STROBE LIGHT: OFF (IMMEDIATE - Hardware forced OFF)");
-      
-      String response = "{\"status\":\"success\",\"actuator\":\"strobe_light\",\"state\":\"off\",\"message\":\"Strobe light turned OFF immediately\"}";
-      server.send(200, "application/json", response);
-    }
-    else
-    {
-      Serial.println("Error: Invalid action for strobe_light");
-      String response = "{\"status\":\"error\",\"message\":\"Invalid action\"}";
-      server.send(400, "application/json", response);
-    }
-  }
-  else
-  {
-    Serial.println("Error: Unknown actuator");
-    String response = "{\"status\":\"error\",\"message\":\"Unknown actuator\"}";
-    server.send(400, "application/json", response);
-  }
-}
-
-// ============================================================
-// HANDLE MANUAL STROBE CONTROL
-// ============================================================
-// Continuous non-blocking blink control for manual strobe operation
-// Both relay and LED blink together when strobe is active
-// ============================================================
-
-void handleManualStrobe()
-{
-  // IF strobe is disabled, immediately force hardware OFF and return
-  if (strobeLightManualControl == false || strobeLightState == false)
-  {
-    strobeBlinkState = false;
-    digitalWrite(RELAY_PIN, RELAY_OFF);
-    digitalWrite(LED_PIN, LOW);
-    digitalWrite(ONBOARD_LED_PIN, LOW);
-    return;
-  }
-  
-  // OTHERWISE strobe is enabled - use non-blocking blink
-  if (millis() - lastStrobeBlinkTime >= strobeBlinkInterval)
-  {
-    lastStrobeBlinkTime = millis();
-    strobeBlinkState = !strobeBlinkState;
-    
-    // Toggle both relay and LED together using relay constants
-    if (strobeBlinkState)
-    {
-      digitalWrite(RELAY_PIN, RELAY_ON);
-      digitalWrite(LED_PIN, HIGH);
-      digitalWrite(ONBOARD_LED_PIN, HIGH);
-    }
-    else
-    {
-      digitalWrite(RELAY_PIN, RELAY_OFF);
-      digitalWrite(LED_PIN, LOW);
-      digitalWrite(ONBOARD_LED_PIN, LOW);
-    }
-  }
 }

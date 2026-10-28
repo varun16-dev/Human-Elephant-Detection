@@ -119,24 +119,50 @@ window.dismissElephantPopup = function() {
 
 // View detection - navigate to camera tab and show detection
 window.viewDetection = function() {
-  console.log('Viewing detection:', currentDetectionData);
+  console.log('[POPUP] Viewing detection:', currentDetectionData);
   
-  // Dismiss popup
-  dismissElephantPopup();
-  
-  // Switch to camera tab
-  const cameraTab = document.querySelector('[data-tab="camera-tab"]');
-  if (cameraTab) {
-    cameraTab.click();
+  // 1. Dismiss popup and silence audio
+  if (typeof dismissElephantPopup === 'function') {
+    dismissElephantPopup();
+  } else {
+    const overlay = document.getElementById('elephant-popup-overlay');
+    const popup = document.getElementById('elephant-popup');
+    if (overlay) overlay.classList.remove('active');
+    if (popup) popup.classList.remove('active');
   }
   
-  // If we have detection data, we could highlight it or scroll to it
-  // For now, just navigate to the camera tab
-  if (currentDetectionData && currentDetectionData.image) {
-    console.log('Detection image:', currentDetectionData.image);
-    // Could add logic to highlight specific detection in the camera tab
+  // 2. Perform robust tab navigation to camera-tab
+  if (typeof switchTab === 'function') {
+    switchTab('camera-tab');
+  } else {
+    const tabBtn = document.getElementById('nav-tab-camera') ||
+                   document.querySelector('[data-tab="camera-tab"]') ||
+                   document.querySelector('button[onclick*="camera-tab"]');
+    if (tabBtn) tabBtn.click();
   }
-}
+
+  // 3. Fallback: Force DOM pane & tab button active states
+  const cameraPane = document.getElementById('camera-tab');
+  if (cameraPane) {
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    cameraPane.classList.add('active');
+  }
+  document.querySelectorAll('.nav-tab').forEach(t => {
+    t.classList.remove('active');
+    const onclickAttr = t.getAttribute('onclick') || '';
+    if (onclickAttr.includes('camera-tab') || t.getAttribute('data-tab') === 'camera-tab' || t.id === 'nav-tab-camera') {
+      t.classList.add('active');
+    }
+  });
+
+  // 4. Trigger data refresh on Camera Detection tab
+  if (typeof pollCameraStatus === 'function') pollCameraStatus();
+  if (typeof loadHistoryData === 'function') loadHistoryData();
+  if (typeof loadGalleryImages === 'function') loadGalleryImages();
+
+  // 5. Scroll to top of camera tab
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+};
 
 // Trigger browser notification
 function triggerBrowserNotification(detection) {

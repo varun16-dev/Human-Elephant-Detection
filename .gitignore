@@ -4,6 +4,22 @@
 .env
 .env.*
 !.env.example
+circuitdigest_sms_config.json
+circuitdigest_sms_history.json
+free_alert_config.json
+free_alert_history.json
+android_sms_config.json
+android_sms_history.json
+twilio_sms_config.json
+twilio_sms_history.json
+local_detections.json
+synced_detection_timestamps.json
+whatsapp_config.json
+whatsapp_history.json
+esp32_test_capture.jpg
+WelcomeScreen/fall_final/detected_elephants/*.jpg
+WelcomeScreen/fall_final/detected_elephants/*.png
+WelcomeScreen/fall_final/camera_config.json
 
 # ==============================
 # Node.js

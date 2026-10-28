@@ -18,6 +18,8 @@ class PushService:
     
     def __init__(self):
         self.lock = Lock()
+        self.local_subscriptions = []
+        self.web_notifications_active = False
         
         # Load VAPID keys from environment
         self.vapid_public_key = os.environ.get("VAPID_PUBLIC_KEY", "")
@@ -34,101 +36,134 @@ class PushService:
         """Get the VAPID public key for frontend subscription"""
         return self.vapid_public_key
     
-    def add_subscription(self, subscription_data, user_id):
-        """Add a new push subscription to Supabase notification_config"""
-        if not user_id:
-            return None
+    def add_subscription(self, subscription_data, user_id=None):
+        """Add a new push subscription to Supabase notification_config and local cache"""
+        user_id = user_id or "demo-officer-session"
+        self.web_notifications_active = True
             
         with self.lock:
-            sb = get_supabase_admin_client()
-            
-            # Upsert into notification_config
-            # We assume one web_push subscription per user for simplicity,
-            # or we can just insert.
-            # To handle multiple devices, we would need to check if it exists.
-            recipient_data = json.dumps(subscription_data)
-            
-            # Check if this exact subscription already exists for this user
-            existing = sb.table('notification_config').select('*').eq('user_id', user_id).eq('alert_type', 'web_push').execute()
-            
-            for config in existing.data:
-                if config['recipient'] == recipient_data:
-                    return config['id']
-                    
-            # Insert new
-            res = sb.table('notification_config').insert({
-                "user_id": user_id,
-                "alert_type": "web_push",
-                "recipient": recipient_data,
-                "enabled": True
-            }).execute()
-            
-            if res.data:
-                return res.data[0]['id']
-            return None
+            # Also keep in local subscriptions
+            endpoint = subscription_data.get('endpoint') if isinstance(subscription_data, dict) else None
+            if endpoint:
+                self.local_subscriptions = [s for s in self.local_subscriptions if s.get('endpoint') != endpoint]
+                self.local_subscriptions.append({
+                    "id": f"sub_local_{len(self.local_subscriptions) + 1}",
+                    "user_id": user_id,
+                    "subscription": subscription_data,
+                    "endpoint": endpoint,
+                    "enabled": True
+                })
+
+            try:
+                sb = get_supabase_admin_client()
+                recipient_data = json.dumps(subscription_data)
+                
+                # Check if this exact subscription already exists for this user
+                existing = sb.table('notification_config').select('*').eq('user_id', user_id).eq('alert_type', 'web_push').execute()
+                
+                for config in existing.data:
+                    if config['recipient'] == recipient_data:
+                        return config['id']
+                        
+                # Insert new
+                res = sb.table('notification_config').insert({
+                    "user_id": user_id,
+                    "alert_type": "web_push",
+                    "recipient": recipient_data,
+                    "enabled": True
+                }).execute()
+                
+                if res.data:
+                    return res.data[0]['id']
+            except Exception as e:
+                print(f"[PUSH-SERVICE] Supabase subscription note: {e}")
+                
+            return f"sub_local_{len(self.local_subscriptions)}"
     
     def disable_subscription(self, config_id):
         """Disable a subscription"""
         with self.lock:
-            sb = get_supabase_admin_client()
-            sb.table('notification_config').update({"enabled": False}).eq('id', config_id).execute()
+            for s in self.local_subscriptions:
+                if s.get('id') == config_id:
+                    s['enabled'] = False
+            try:
+                sb = get_supabase_admin_client()
+                sb.table('notification_config').update({"enabled": False}).eq('id', config_id).execute()
+            except Exception:
+                pass
             return True
 
-    def remove_subscription(self, endpoint, user_id):
-        """Remove a subscription from Supabase notification_config"""
-        if not user_id:
-            return False
-            
+    def remove_subscription(self, endpoint, user_id=None):
+        """Remove a subscription from Supabase notification_config and local cache"""
         with self.lock:
-            sb = get_supabase_admin_client()
-            # Find the subscription for this user
-            existing = sb.table('notification_config').select('*').eq('user_id', user_id).eq('alert_type', 'web_push').execute()
-            
-            for config in existing.data:
-                try:
-                    sub_data = json.loads(config['recipient'])
-                    if sub_data.get('endpoint') == endpoint:
-                        sb.table('notification_config').delete().eq('id', config['id']).execute()
-                        return True
-                except:
-                    pass
-            return False
+            self.local_subscriptions = [s for s in self.local_subscriptions if s.get('endpoint') != endpoint]
+            if len(self.local_subscriptions) == 0:
+                self.web_notifications_active = False
+
+            try:
+                sb = get_supabase_admin_client()
+                user_id = user_id or "demo-officer-session"
+                existing = sb.table('notification_config').select('*').eq('user_id', user_id).eq('alert_type', 'web_push').execute()
+                
+                for config in existing.data:
+                    try:
+                        sub_data = json.loads(config['recipient'])
+                        if sub_data.get('endpoint') == endpoint:
+                            sb.table('notification_config').delete().eq('id', config['id']).execute()
+                            return True
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+            return True
     
     def get_subscriptions(self, role=None, enabled_only=True):
         """Get subscriptions, optionally filtered by user role from profiles"""
         with self.lock:
-            sb = get_supabase_admin_client()
+            configs = []
+            try:
+                sb = get_supabase_admin_client()
+                query = sb.table('notification_config').select('id, user_id, recipient, enabled').eq('alert_type', 'web_push')
+                if enabled_only:
+                    query = query.eq('enabled', True)
+                configs = query.execute().data or []
+            except Exception:
+                configs = []
             
-            # Get all web push configs
-            query = sb.table('notification_config').select('id, user_id, recipient, enabled').eq('alert_type', 'web_push')
-            if enabled_only:
-                query = query.eq('enabled', True)
-                
-            configs = query.execute().data
-            
-            if not configs:
-                return []
+            if not configs and self.local_subscriptions:
+                configs = [
+                    {
+                        "id": s["id"],
+                        "user_id": s["user_id"],
+                        "recipient": json.dumps(s["subscription"]),
+                        "enabled": s["enabled"]
+                    }
+                    for s in self.local_subscriptions if (not enabled_only or s.get("enabled"))
+                ]
                 
             if role:
-                # We need to filter by role. Let's fetch profiles for these user_ids.
-                user_ids = [c['user_id'] for c in configs if c.get('user_id')]
-                if not user_ids:
-                    return []
-                
-                profiles_res = sb.table('profiles').select('user_id, role, full_name').in_('user_id', user_ids).execute()
-                profiles = {p['user_id']: p for p in profiles_res.data}
-                
-                # Filter configs where the user's role matches
-                filtered_configs = []
-                for c in configs:
-                    p = profiles.get(c['user_id'])
-                    # role might be case insensitive or exact match based on the system
-                    if p and p['role'].upper() == role.upper():
-                        c['user_name'] = p['full_name']
-                        c['user_role'] = p['role']
-                        filtered_configs.append(c)
-                        
-                configs = filtered_configs
+                try:
+                    # We need to filter by role. Let's fetch profiles for these user_ids.
+                    user_ids = [c['user_id'] for c in configs if c.get('user_id')]
+                    if not user_ids:
+                        return []
+                    
+                    profiles_res = sb.table('profiles').select('user_id, role, full_name').in_('user_id', user_ids).execute()
+                    profiles = {p['user_id']: p for p in profiles_res.data}
+                    
+                    # Filter configs where the user's role matches
+                    filtered_configs = []
+                    for c in configs:
+                        p = profiles.get(c['user_id'])
+                        # role might be case insensitive or exact match based on the system
+                        if p and p['role'].upper() == role.upper():
+                            c['user_name'] = p['full_name']
+                            c['user_role'] = p['role']
+                            filtered_configs.append(c)
+                            
+                    configs = filtered_configs
+                except Exception as pe:
+                    print(f"[PUSH-SERVICE] Note: Could not filter profiles by role from Supabase ({pe})")
             
             # Format the output to match what the old method returned
             formatted_subs = []
@@ -170,17 +205,20 @@ class PushService:
             return {"success": False, "error": str(e)}
             
     def _log_notification_history(self, alert_id, user_id, recipient, message, status, error_message=None):
-        sb = get_supabase_admin_client()
-        sb.table('notification_history').insert({
-            "alert_id": alert_id,
-            "user_id": user_id,
-            "alert_type": "web_push",
-            "recipient": recipient,
-            "message": json.dumps(message),
-            "status": status,
-            "error_message": error_message,
-            "sent_at": datetime.now().isoformat() if status == 'sent' else None
-        }).execute()
+        try:
+            sb = get_supabase_admin_client()
+            sb.table('notification_history').insert({
+                "alert_id": alert_id,
+                "user_id": user_id,
+                "alert_type": "web_push",
+                "recipient": recipient,
+                "message": json.dumps(message),
+                "status": status,
+                "error_message": error_message,
+                "sent_at": datetime.now().isoformat() if status == 'sent' else None
+            }).execute()
+        except Exception as e:
+            print(f"[PUSH-SERVICE] Note: notification_history log offline ({e})")
     
     def send_activity_alert(self, activity_event, role=None):
         """Send activity detection alert to all subscribed users"""

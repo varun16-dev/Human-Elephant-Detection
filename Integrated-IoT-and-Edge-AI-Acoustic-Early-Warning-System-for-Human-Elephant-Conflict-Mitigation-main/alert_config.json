@@ -1,7 +1,7 @@
 {
   "confirmation_settings": {
     "confirmation_frames": 3,
-    "min_confirmation_confidence": 0.50,
+    "min_confirmation_confidence": 0.5,
     "alert_cooldown_seconds": 300
   },
   "web_push_settings": {

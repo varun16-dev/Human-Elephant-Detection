@@ -1007,8 +1007,22 @@ async function loadChartData() {
             updateChart(result.data, result.sensor_type);
         } else {
             console.log('No sensor data available for selected period');
-            // Show offline state if no data
-            showChartOfflineState();
+            if (statusData.connected) {
+                if (sensorChart) {
+                    sensorChart.data.labels = [];
+                    sensorChart.data.datasets = [];
+                    sensorChart.options.plugins.title = {
+                        display: true,
+                        text: `${selectedMonitoringNode === 'ESP32-NODE-01' ? 'Node 1' : 'Node 2'} is ONLINE - Listening for sensor signals`,
+                        color: '#10b981',
+                        font: { size: 15, weight: 'bold', family: 'Inter' },
+                        padding: { top: 20, bottom: 20 }
+                    };
+                    sensorChart.update();
+                }
+            } else {
+                showChartOfflineState();
+            }
         }
         
     } catch (error) {
