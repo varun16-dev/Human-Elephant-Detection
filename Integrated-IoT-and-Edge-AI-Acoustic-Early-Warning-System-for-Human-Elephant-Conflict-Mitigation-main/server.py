@@ -2257,10 +2257,41 @@ def get_detections():
                 "saved_image": row.get('image_url', '')
             })
             
-        return jsonify(detections)
+        if detections:
+            return jsonify(detections)
     except Exception as e:
-        print(f"Error fetching detections from Supabase: {e}")
-        return jsonify([])
+        print(f"Notice: Supabase detections offline ({e}). Serving from local detection store.")
+
+    # Local fallback for offline mode / DNS issues
+    local_records = []
+    local_file = os.path.join(base_dir, 'local_detections.json')
+    if os.path.exists(local_file) and os.path.getsize(local_file) > 0:
+        try:
+            with open(local_file, 'r', encoding='utf-8') as f:
+                local_records = json.load(f)
+        except Exception:
+            pass
+    if not local_records and LOCAL_DETECTIONS_STORE:
+        local_records = list(LOCAL_DETECTIONS_STORE)
+
+    detections = []
+    for row in reversed(local_records[-500:]):
+        local_dt, _ = parse_detection_datetime(row.get('timestamp'))
+        if not local_dt:
+            local_dt = datetime.now()
+
+        count = row.get('elephant_count', 1 if row.get('detection') == 'ELEPHANT_DETECTED' else 0)
+        detections.append({
+            "date": local_dt.strftime('%Y-%m-%d'),
+            "time": local_dt.strftime('%H:%M:%S'),
+            "timestamp": str(local_dt.timestamp()),
+            "elephant_detected": "YES" if (row.get('detection') == "ELEPHANT_DETECTED" or count > 0) else "NO",
+            "elephant_count": count,
+            "confidence": row.get('confidence', 0.0),
+            "saved_image": row.get('image_path') or row.get('image_url', '')
+        })
+
+    return jsonify(detections)
 
 @app.route('/api/elephant-detection/confirmed', methods=['GET'])
 def get_confirmed_elephant_detection():

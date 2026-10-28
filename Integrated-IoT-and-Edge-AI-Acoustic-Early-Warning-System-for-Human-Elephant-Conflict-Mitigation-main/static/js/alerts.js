@@ -13,8 +13,11 @@ let alertStatusInterval = null;
 document.addEventListener('DOMContentLoaded', () => {
   console.log("Alert Management Initializing...");
   
-  // Load alert history
+  // Load alert history immediately
   loadAlertHistory();
+  
+  // Poll alert history every 3 seconds to keep UI in sync
+  setInterval(loadAlertHistory, 3000);
   
   // Start polling alert status
   pollAlertStatus();
@@ -22,12 +25,20 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Load configuration
   loadAlertConfig();
+
+  // Also reload immediately whenever user clicks the Alerts & Notifications tab
+  document.querySelectorAll('[data-tab="alerts-tab"], a[href="#alerts-tab"], .tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      setTimeout(loadAlertHistory, 100);
+    });
+  });
 });
 
 // Load alert history from API
 async function loadAlertHistory() {
   try {
     const response = await fetch('/api/alerts/history');
+    if (!response.ok) return;
     const data = await response.json();
     
     if (Array.isArray(data)) {
@@ -44,7 +55,7 @@ function renderAlertHistory() {
   const tbody = document.getElementById('alerts-table-body');
   if (!tbody) return;
   
-  if (alertHistory.length === 0) {
+  if (!alertHistory || alertHistory.length === 0) {
     tbody.innerHTML = `
       <tr>
         <td colspan="6" style="text-align: center; padding: 2rem; color: var(--text-muted);">
@@ -58,39 +69,80 @@ function renderAlertHistory() {
   
   tbody.innerHTML = '';
   
-  // Show most recent 20 events
-  const recentEvents = alertHistory.slice(-20).reverse();
+  // Sort descending by timestamp (newest events first)
+  const sortedEvents = [...alertHistory].sort((a, b) => {
+    const tA = new Date(a.timestamp || a.created_at || 0).getTime();
+    const tB = new Date(b.timestamp || b.created_at || 0).getTime();
+    return tB - tA;
+  });
+
+  // Show most recent 25 events
+  const recentEvents = sortedEvents.slice(0, 25);
   
   recentEvents.forEach(event => {
-    const timestamp = event.timestamp || 'N/A';
-    const time = timestamp.split('T')[1]?.split('.')[0] || timestamp;
+    const rawTs = event.timestamp || event.created_at || 'N/A';
+    let time = 'N/A';
+    if (rawTs && typeof rawTs === 'string') {
+      if (rawTs.includes('T')) {
+        time = rawTs.split('T')[1].split('.')[0];
+      } else if (rawTs.includes(' ')) {
+        time = rawTs.split(' ')[1];
+      } else {
+        time = rawTs;
+      }
+    }
     
     // Determine event type and styling
-    const eventType = event.event_type || event.alert_type || 'UNKNOWN';
-    const isActivity = eventType === 'ACTIVITY_DETECTED' || eventType === 'ACTIVITY_VERIFIED_NO_ELEPHANT';
-    const isElephant = eventType === 'ELEPHANT_DETECTED' || eventType === 'ELEPHANT_CONFIRMED';
+    const eventType = String(event.event_type || event.alert_type || event.detection || '').toUpperCase();
+    const isElephant = eventType.includes('ELEPHANT') || event.elephant_detected === true || (event.elephant_count && event.elephant_count > 0);
+    const isActivity = !isElephant && (eventType.includes('ACTIVITY') || event.pir_detected || event.sound_detected);
     
     let typeBadge = '';
     let rowClass = '';
     
-    if (isActivity) {
+    if (isElephant) {
+      const cnt = event.elephant_count || 1;
+      typeBadge = `<span class="badge-det critical">🐘 Elephant (${cnt})</span>`;
+      rowClass = 'elephant-row';
+    } else if (isActivity) {
       typeBadge = '<span class="badge-det warning">⚠️ Activity</span>';
       rowClass = 'activity-row';
-    } else if (isElephant) {
-      typeBadge = '<span class="badge-det critical">🐘 Elephant</span>';
-      rowClass = 'elephant-row';
     } else {
-      typeBadge = '<span class="badge-det no">Unknown</span>';
+      typeBadge = '<span class="badge-det no">Notice</span>';
     }
     
-    // Get trigger source for activity events
-    const triggerSource = event.trigger_source || '-';
-    const location = event.location || '-';
-    const cameraStatus = event.camera_verification || '-';
+    // Determine trigger source
+    let triggerSource = event.trigger_source;
+    if (!triggerSource || triggerSource === '-') {
+      if (event.pir_detected && event.sound_detected) {
+        triggerSource = 'PIR + Sound';
+      } else if (event.pir_detected) {
+        triggerSource = 'PIR Sensor';
+      } else if (event.sound_detected) {
+        triggerSource = 'Acoustic Sensor';
+      } else {
+        triggerSource = 'AI Camera Stream';
+      }
+    }
+    
+    const location = event.location || 'Anekal, Karnataka';
+    
+    // Determine camera status
+    let cameraStatus = event.camera_verification;
+    if (!cameraStatus || cameraStatus === '-') {
+      if (isElephant) {
+        cameraStatus = event.elephant_count ? `Verified (${event.elephant_count})` : 'Verified';
+      } else {
+        cameraStatus = 'Active';
+      }
+    }
     
     // Get notification status
-    const webPushStatus = event.delivery_status?.web_push;
-    const notificationBadge = getNotificationBadge(webPushStatus);
+    let webPushStatus = event.delivery_status?.web_push;
+    if (!webPushStatus && event.alert_sent) {
+      webPushStatus = 'sent';
+    }
+    const notificationBadge = getNotificationBadge(webPushStatus || event.delivery_status);
     
     tbody.innerHTML += `
       <tr class="${rowClass}">
